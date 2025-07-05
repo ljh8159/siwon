@@ -1,5 +1,6 @@
 // MapComponent.js
 import React, { useEffect, useRef, useState } from 'react';
+import maplibregl from 'maplibre-gl';
 
 const KAKAO_MAP_KEY = "YOUR_KAKAO_MAP_KEY"; // 실제 키로 교체
 const API_URL = process.env.REACT_APP_API_URL || 'https://backendflask-production-f4c6.up.railway.app';
