@@ -27,34 +27,41 @@ app = Flask(__name__)
 
 # CORS 설정
 CORS(app, 
-    resources={r"/*": {
-        "origins": ["https://front-production-9f96.up.railway.app", "http://localhost:3000"],
+    resources={r"/api/*": {
+        "origins": ["https://front-production-9f96.up.railway.app"],
         "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
         "allow_headers": ["Content-Type", "Authorization", "Accept", "X-Requested-With"],
+        "expose_headers": ["Content-Type", "Authorization"],
         "supports_credentials": True,
-        "expose_headers": ["Content-Type", "Authorization"]
+        "max_age": 600
     }}
 )
+
+@app.before_request
+def handle_preflight():
+    if request.method == "OPTIONS":
+        response = app.make_default_options_response()
+        origin = request.headers.get('Origin')
+        if origin == 'https://front-production-9f96.up.railway.app':
+            response.headers['Access-Control-Allow-Origin'] = origin
+            response.headers['Access-Control-Allow-Methods'] = 'GET,PUT,POST,DELETE,OPTIONS'
+            response.headers['Access-Control-Allow-Headers'] = 'Content-Type,Authorization,Accept,X-Requested-With'
+            response.headers['Access-Control-Max-Age'] = '600'
+            response.headers['Access-Control-Allow-Credentials'] = 'true'
+        return response
 
 @app.after_request
 def after_request(response):
     origin = request.headers.get('Origin')
-    if origin in ['https://front-production-9f96.up.railway.app', 'http://localhost:3000']:
+    if origin == 'https://front-production-9f96.up.railway.app':
         response.headers['Access-Control-Allow-Origin'] = origin
         response.headers['Access-Control-Allow-Methods'] = 'GET,PUT,POST,DELETE,OPTIONS'
         response.headers['Access-Control-Allow-Headers'] = 'Content-Type,Authorization,Accept,X-Requested-With'
         response.headers['Access-Control-Allow-Credentials'] = 'true'
-        response.headers['Access-Control-Expose-Headers'] = 'Content-Type,Authorization'
     return response
 
-# OPTIONS 요청 처리
-@app.route('/', defaults={'path': ''}, methods=['OPTIONS'])
-@app.route('/<path:path>', methods=['OPTIONS'])
-def handle_options(path):
-    return '', 200
-
+# 업로드 폴더 설정
 app.config['UPLOAD_FOLDER'] = os.path.abspath(UPLOAD_FOLDER)
-
 if not os.path.exists(app.config['UPLOAD_FOLDER']):
     os.makedirs(app.config['UPLOAD_FOLDER'])
 
@@ -203,142 +210,44 @@ def init_db():
         with app.app_context():
             db = get_db()
             cur = db.cursor()
-            # PostgreSQL과 SQLite 모두 호환되는 테이블 생성
-            if os.environ.get("DATABASE_URL"):
-                print("Initializing PostgreSQL database...")
-                # PostgreSQL
-                cur.execute('''
-                    CREATE TABLE IF NOT EXISTS reports (
-                        id SERIAL PRIMARY KEY,
-                        user_id TEXT,
-                        type TEXT,
-                        photo_filename TEXT,
-                        location TEXT,
-                        lat REAL,
-                        lng REAL,
-                        timestamp TEXT,
-                        ai_stage INTEGER,
-                        extra TEXT,
-                        dispatch_user_id TEXT,
-                        for_userpage_type TEXT,
-                        for_userpage_stage INTEGER
-                    )
-                ''')
-                print("Reports table created successfully")
-            else:
-                print("Initializing SQLite database...")
-                # SQLite
-                cur.execute('''
-                    CREATE TABLE IF NOT EXISTS reports (
-                        id INTEGER PRIMARY KEY AUTOINCREMENT,
-                        user_id TEXT,
-                        type TEXT,
-                        photo_filename TEXT,
-                        location TEXT,
-                        lat REAL,
-                        lng REAL,
-                        timestamp TEXT,
-                        ai_stage INTEGER,
-                        extra TEXT,
-                        dispatch_user_id TEXT,
-                        for_userpage_type TEXT,
-                        for_userpage_stage INTEGER
-                    )
-                ''')
-                print("Reports table created successfully")
+            
+            # reports 테이블 생성
+            cur.execute('''
+                CREATE TABLE IF NOT EXISTS reports (
+                    id SERIAL PRIMARY KEY,
+                    user_id TEXT,
+                    type TEXT,
+                    photo_filename TEXT,
+                    location TEXT,
+                    lat REAL,
+                    lng REAL,
+                    timestamp TEXT,
+                    ai_stage INTEGER DEFAULT 0,
+                    for_userpage_type TEXT,
+                    for_userpage_stage INTEGER DEFAULT 0,
+                    dispatch_user_id TEXT
+                )
+            ''')
+            
+            # users 테이블 생성
+            cur.execute('''
+                CREATE TABLE IF NOT EXISTS users (
+                    id SERIAL PRIMARY KEY,
+                    user_id TEXT UNIQUE,
+                    password TEXT
+                )
+            ''')
+            
             db.commit()
-            cur.close()
+            print("Database tables created successfully")
+            
     except Exception as e:
-        print(f"Error initializing database: {str(e)}")
-        raise
+        print(f"Database initialization error: {str(e)}")
+        if db:
+            db.rollback()
 
-def init_user_table():
-    try:
-        with app.app_context():
-            db = get_db()
-            cur = db.cursor()
-            if os.environ.get("DATABASE_URL"):
-                print("Initializing PostgreSQL users table...")
-                # PostgreSQL
-                cur.execute('''
-                    CREATE TABLE IF NOT EXISTS users (
-                        id SERIAL PRIMARY KEY,
-                        user_id TEXT UNIQUE,
-                        password TEXT
-                    )
-                ''')
-                print("Users table created successfully")
-            else:
-                print("Initializing SQLite users table...")
-                # SQLite
-                cur.execute('''
-                    CREATE TABLE IF NOT EXISTS users (
-                        id INTEGER PRIMARY KEY AUTOINCREMENT,
-                        user_id TEXT UNIQUE,
-                        password TEXT
-                    )
-                ''')
-                print("Users table created successfully")
-            db.commit()
-            cur.close()
-    except Exception as e:
-        print(f"Error initializing users table: {str(e)}")
-        raise
-
-# 서버 시작시 데이터베이스 초기화
-with app.app_context():
-    try:
-        init_db()
-        init_user_table()
-        print("Database initialization completed successfully")
-        
-        # 테이블이 실제로 존재하는지 확인
-        db = get_db()
-        if db is None:
-            print("Warning: Could not connect to database")
-        else:
-            cur = db.cursor()
-            try:
-                if is_postgres():
-                    cur.execute("""
-                        SELECT EXISTS (
-                            SELECT FROM information_schema.tables 
-                            WHERE table_name = 'reports'
-                        )
-                    """)
-                else:
-                    cur.execute("""
-                        SELECT name FROM sqlite_master 
-                        WHERE type='table' AND name='reports'
-                    """)
-                if not cur.fetchone()[0]:
-                    print("Warning: Reports table does not exist")
-                    init_db()
-                
-                if is_postgres():
-                    cur.execute("""
-                        SELECT EXISTS (
-                            SELECT FROM information_schema.tables 
-                            WHERE table_name = 'users'
-                        )
-                    """)
-                else:
-                    cur.execute("""
-                        SELECT name FROM sqlite_master 
-                        WHERE type='table' AND name='users'
-                    """)
-                if not cur.fetchone()[0]:
-                    print("Warning: Users table does not exist")
-                    init_user_table()
-                
-                print("Database tables verified successfully")
-            except Exception as e:
-                print(f"Error verifying tables: {str(e)}")
-            finally:
-                cur.close()
-    except Exception as e:
-        print(f"Error during database initialization: {str(e)}")
-        print("Warning: Application may not function correctly")
+# 서버 시작 시 데이터베이스 초기화
+init_db()
 
 @app.route('/')
 def index():
@@ -349,31 +258,28 @@ def reports_page():
     return "신고/출동 API 서버입니다."
 
 def allowed_file(filename):
-    return '.' in filename and \
-           filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
-@app.route('/api/upload_photo', methods=['POST'])
+@app.route('/api/upload_photo', methods=['POST', 'OPTIONS'])
 def upload_photo():
+    if request.method == 'OPTIONS':
+        return '', 200
+        
     try:
-        if 'file' not in request.files:
-            return jsonify({'error': 'No file part'}), 400
-        file = request.files['file']
+        if 'photo' not in request.files:
+            return jsonify({'error': 'No photo part'}), 400
+        file = request.files['photo']
         if file.filename == '':
             return jsonify({'error': 'No selected file'}), 400
         if file and allowed_file(file.filename):
-            # 파일 이름이 중복되지 않도록 타임스탬프 추가
-            filename = datetime.now().strftime("%Y%m%d_%H%M%S_") + secure_filename(file.filename)
-            filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
-            file.save(filepath)
-            return jsonify({
-                'success': True,
-                'filename': filename,
-                'filepath': filepath
-            })
-        return jsonify({'error': 'Invalid file type'}), 400
+            filename = secure_filename(file.filename)
+            file_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+            file.save(file_path)
+            return jsonify({'filename': filename}), 200
+        return jsonify({'error': 'File type not allowed'}), 400
     except Exception as e:
-        print(f"File upload error: {str(e)}")
-        return jsonify({'error': 'File upload failed'}), 500
+        print(f"Upload error: {str(e)}")
+        return jsonify({'error': str(e)}), 500
 
 @app.route('/api/predict', methods=['POST'])
 def predict():
