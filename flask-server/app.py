@@ -131,14 +131,18 @@ except Exception as e:
 def get_db():
     db = getattr(g, '_database', None)
     if db is None:
-        database_url = os.environ.get("DATABASE_URL")
-        if database_url:
-            # 프로덕션 환경: PostgreSQL 사용
-            db = g._database = psycopg2.connect(database_url)
-        else:
-            # 로컬 개발 환경: SQLite 사용
-            db = g._database = sqlite3.connect('reports.db')
-            db.row_factory = sqlite3.Row
+        try:
+            database_url = os.environ.get("DATABASE_URL")
+            if database_url:
+                # 프로덕션 환경: PostgreSQL 사용
+                db = g._database = psycopg2.connect(database_url)
+            else:
+                # 로컬 개발 환경: SQLite 사용
+                db = g._database = sqlite3.connect('reports.db')
+                db.row_factory = sqlite3.Row
+        except Exception as e:
+            print(f"Database connection error: {str(e)}")
+            return None
     return db
 
 def get_placeholder():
@@ -248,8 +252,54 @@ with app.app_context():
         init_db()
         init_user_table()
         print("Database initialization completed successfully")
+        
+        # 테이블이 실제로 존재하는지 확인
+        db = get_db()
+        if db is None:
+            print("Warning: Could not connect to database")
+        else:
+            cur = db.cursor()
+            try:
+                if is_postgres():
+                    cur.execute("""
+                        SELECT EXISTS (
+                            SELECT FROM information_schema.tables 
+                            WHERE table_name = 'reports'
+                        )
+                    """)
+                else:
+                    cur.execute("""
+                        SELECT name FROM sqlite_master 
+                        WHERE type='table' AND name='reports'
+                    """)
+                if not cur.fetchone()[0]:
+                    print("Warning: Reports table does not exist")
+                    init_db()
+                
+                if is_postgres():
+                    cur.execute("""
+                        SELECT EXISTS (
+                            SELECT FROM information_schema.tables 
+                            WHERE table_name = 'users'
+                        )
+                    """)
+                else:
+                    cur.execute("""
+                        SELECT name FROM sqlite_master 
+                        WHERE type='table' AND name='users'
+                    """)
+                if not cur.fetchone()[0]:
+                    print("Warning: Users table does not exist")
+                    init_user_table()
+                
+                print("Database tables verified successfully")
+            except Exception as e:
+                print(f"Error verifying tables: {str(e)}")
+            finally:
+                cur.close()
     except Exception as e:
-        print(f"Failed to initialize database: {str(e)}")
+        print(f"Error during database initialization: {str(e)}")
+        print("Warning: Application may not function correctly")
 
 @app.route('/')
 def index():
@@ -265,22 +315,26 @@ def allowed_file(filename):
 
 @app.route('/api/upload_photo', methods=['POST'])
 def upload_photo():
-    if 'file' not in request.files:
-        return jsonify({'error': 'No file part'}), 400
-    file = request.files['file']
-    if file.filename == '':
-        return jsonify({'error': 'No selected file'}), 400
-    if file and allowed_file(file.filename):
-        # 파일 이름이 중복되지 않도록 타임스탬프 추가
-        filename = datetime.now().strftime("%Y%m%d_%H%M%S_") + secure_filename(file.filename)
-        filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
-        file.save(filepath)
-        return jsonify({
-            'success': True,
-            'filename': filename,
-            'filepath': filepath
-        })
-    return jsonify({'error': 'Invalid file type'}), 400
+    try:
+        if 'file' not in request.files:
+            return jsonify({'error': 'No file part'}), 400
+        file = request.files['file']
+        if file.filename == '':
+            return jsonify({'error': 'No selected file'}), 400
+        if file and allowed_file(file.filename):
+            # 파일 이름이 중복되지 않도록 타임스탬프 추가
+            filename = datetime.now().strftime("%Y%m%d_%H%M%S_") + secure_filename(file.filename)
+            filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+            file.save(filepath)
+            return jsonify({
+                'success': True,
+                'filename': filename,
+                'filepath': filepath
+            })
+        return jsonify({'error': 'Invalid file type'}), 400
+    except Exception as e:
+        print(f"File upload error: {str(e)}")
+        return jsonify({'error': 'File upload failed'}), 500
 
 @app.route('/api/predict', methods=['POST'])
 def predict():
@@ -366,159 +420,185 @@ def report_stats():
         "dispatched_count": dispatched_count
     })
 
+def handle_db_error(e):
+    print(f"Database error: {str(e)}")
+    return jsonify({'error': 'Database error occurred'}), 500
+
 @app.route('/api/all_reports', methods=['GET'])
 def all_reports():
-    limit = request.args.get('limit', default=3, type=int)
-    db = get_db()
-    
-    if is_postgres():
-        cur = db.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
-    else:
-        cur = db.cursor()
-    
-    placeholder = get_placeholder()
-    query = f"SELECT type, location, timestamp FROM reports WHERE type='신고' AND ai_stage=3 ORDER BY timestamp DESC LIMIT {placeholder}"
-    cur.execute(query, (limit,))
-    
-    reports = []
-    from datetime import datetime, timezone
-    import math
-    
-    for row in cur.fetchall():
+    try:
+        limit = request.args.get('limit', default=3, type=int)
+        db = get_db()
+        if db is None:
+            return jsonify({'error': 'Database connection failed'}), 500
+        
         if is_postgres():
-            row_dict = dict(row)
+            cur = db.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
         else:
-            row_dict = dict(row)
+            cur = db.cursor()
         
-        try:
-            t = datetime.fromisoformat(row_dict['timestamp'].replace('Z', '+00:00'))
-            now = datetime.now(timezone.utc)
-            diff = now - t
-            seconds = diff.total_seconds()
-            if seconds < 60:
-                time_str = f"{int(seconds)}초 전"
-            elif seconds < 3600:
-                minutes = int(seconds // 60)
-                time_str = f"{minutes}분 전"
-            elif seconds < 86400:
-                hours = int(seconds // 3600)
-                time_str = f"{hours}시간 전"
-            elif diff.days < 30:
-                time_str = f"{diff.days}일 전"
+        placeholder = get_placeholder()
+        query = f"SELECT type, location, timestamp FROM reports WHERE type='신고' AND ai_stage=3 ORDER BY timestamp DESC LIMIT {placeholder}"
+        cur.execute(query, (limit,))
+        
+        reports = []
+        from datetime import datetime, timezone
+        import math
+        
+        for row in cur.fetchall():
+            if is_postgres():
+                row_dict = dict(row)
             else:
-                months = math.floor(diff.days / 30)
-                time_str = f"{months}달 전"
-        except Exception:
-            time_str = ""
+                row_dict = dict(row)
+            
+            try:
+                t = datetime.fromisoformat(row_dict['timestamp'].replace('Z', '+00:00'))
+                now = datetime.now(timezone.utc)
+                diff = now - t
+                seconds = diff.total_seconds()
+                if seconds < 60:
+                    time_str = f"{int(seconds)}초 전"
+                elif seconds < 3600:
+                    minutes = int(seconds // 60)
+                    time_str = f"{minutes}분 전"
+                elif seconds < 86400:
+                    hours = int(seconds // 3600)
+                    time_str = f"{hours}시간 전"
+                elif diff.days < 30:
+                    time_str = f"{diff.days}일 전"
+                else:
+                    months = math.floor(diff.days / 30)
+                    time_str = f"{months}달 전"
+            except Exception:
+                time_str = ""
+            
+            reports.append({
+                "type": row_dict["type"],
+                "location": row_dict["location"],
+                "timestamp": row_dict["timestamp"],
+                "time": time_str
+            })
         
-        reports.append({
-            "type": row_dict["type"],
-            "location": row_dict["location"],
-            "timestamp": row_dict["timestamp"],
-            "time": time_str
-        })
-    
-    cur.close()
-    return jsonify(reports)
+        cur.close()
+        return jsonify(reports)
+    except Exception as e:
+        return handle_db_error(e)
 
 @app.route('/api/user_reports', methods=['GET'])
 def user_reports():
-    user_id = request.args.get('user_id', 'guest')
-    limit = request.args.get('limit', default=3, type=int)
-    db = get_db()
-    
-    if is_postgres():
-        cur = db.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
-    else:
-        cur = db.cursor()
-    
-    placeholder = get_placeholder()
-    query = f"""SELECT type, location, timestamp FROM reports WHERE user_id={placeholder} AND for_userpage_type='신고' AND for_userpage_stage=3 
-        UNION ALL 
-        SELECT type, location, timestamp FROM reports WHERE dispatch_user_id={placeholder} AND type='출동' AND ai_stage=1 
-        ORDER BY timestamp DESC LIMIT {placeholder}"""
-    cur.execute(query, (user_id, user_id, limit))
-    
-    reports = []
-    from datetime import datetime, timezone
-    import math
-    
-    for row in cur.fetchall():
+    try:
+        user_id = request.args.get('user_id', 'guest')
+        limit = request.args.get('limit', default=3, type=int)
+        db = get_db()
+        if db is None:
+            return jsonify({'error': 'Database connection failed'}), 500
+        
         if is_postgres():
-            row_dict = dict(row)
+            cur = db.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
         else:
-            row_dict = dict(row)
+            cur = db.cursor()
         
-        try:
-            t = datetime.fromisoformat(row_dict['timestamp'].replace('Z', '+00:00'))
-            now = datetime.now(timezone.utc)
-            diff = now - t
-            seconds = diff.total_seconds()
-            if seconds < 60:
-                time_str = f"{int(seconds)}초 전"
-            elif seconds < 3600:
-                minutes = int(seconds // 60)
-                time_str = f"{minutes}분 전"
-            elif seconds < 86400:
-                hours = int(seconds // 3600)
-                time_str = f"{hours}시간 전"
-            elif diff.days < 30:
-                time_str = f"{diff.days}일 전"
+        placeholder = get_placeholder()
+        query = f"""SELECT type, location, timestamp FROM reports WHERE user_id={placeholder} AND for_userpage_type='신고' AND for_userpage_stage=3 
+            UNION ALL 
+            SELECT type, location, timestamp FROM reports WHERE dispatch_user_id={placeholder} AND type='출동' AND ai_stage=1 
+            ORDER BY timestamp DESC LIMIT {placeholder}"""
+        cur.execute(query, (user_id, user_id, limit))
+        
+        reports = []
+        from datetime import datetime, timezone
+        import math
+        
+        for row in cur.fetchall():
+            if is_postgres():
+                row_dict = dict(row)
             else:
-                months = math.floor(diff.days / 30)
-                time_str = f"{months}달 전"
-        except Exception:
-            time_str = ""
+                row_dict = dict(row)
+            
+            try:
+                t = datetime.fromisoformat(row_dict['timestamp'].replace('Z', '+00:00'))
+                now = datetime.now(timezone.utc)
+                diff = now - t
+                seconds = diff.total_seconds()
+                if seconds < 60:
+                    time_str = f"{int(seconds)}초 전"
+                elif seconds < 3600:
+                    minutes = int(seconds // 60)
+                    time_str = f"{minutes}분 전"
+                elif seconds < 86400:
+                    hours = int(seconds // 3600)
+                    time_str = f"{hours}시간 전"
+                elif diff.days < 30:
+                    time_str = f"{diff.days}일 전"
+                else:
+                    months = math.floor(diff.days / 30)
+                    time_str = f"{months}달 전"
+            except Exception:
+                time_str = ""
+            
+            reports.append({
+                "type": row_dict["type"],
+                "location": row_dict["location"],
+                "timestamp": row_dict["timestamp"],
+                "time": time_str
+            })
         
-        reports.append({
-            "type": row_dict["type"],
-            "location": row_dict["location"],
-            "timestamp": row_dict["timestamp"],
-            "time": time_str
-        })
-    
-    cur.close()
-    return jsonify(reports)
+        cur.close()
+        return jsonify(reports)
+    except Exception as e:
+        return handle_db_error(e)
 
 @app.route('/api/user_stats', methods=['GET'])
 def user_stats():
-    user_id = request.args.get('user_id', 'guest')
-    db = get_db()
-    cur = db.cursor()
-    placeholder = get_placeholder()
-    
-    query = f"SELECT COUNT(*) FROM reports WHERE user_id={placeholder} AND for_userpage_type='신고' AND for_userpage_stage=3"
-    cur.execute(query, (user_id,))
-    report_count = cur.fetchone()[0]
-    
-    query = f"SELECT COUNT(*) FROM reports WHERE dispatch_user_id={placeholder} AND type='출동' AND ai_stage=1"
-    cur.execute(query, (user_id,))
-    dispatch_count = cur.fetchone()[0]
-    
-    cur.close()
-    return jsonify({
-        "report_count": report_count,
-        "dispatch_count": dispatch_count
-    })
+    try:
+        user_id = request.args.get('user_id', 'guest')
+        db = get_db()
+        if db is None:
+            return jsonify({'error': 'Database connection failed'}), 500
+            
+        cur = db.cursor()
+        placeholder = get_placeholder()
+        
+        query = f"SELECT COUNT(*) FROM reports WHERE user_id={placeholder} AND for_userpage_type='신고' AND for_userpage_stage=3"
+        cur.execute(query, (user_id,))
+        report_count = cur.fetchone()[0]
+        
+        query = f"SELECT COUNT(*) FROM reports WHERE dispatch_user_id={placeholder} AND type='출동' AND ai_stage=1"
+        cur.execute(query, (user_id,))
+        dispatch_count = cur.fetchone()[0]
+        
+        cur.close()
+        return jsonify({
+            "report_count": report_count,
+            "dispatch_count": dispatch_count
+        })
+    except Exception as e:
+        return handle_db_error(e)
 
 @app.route('/api/user_point', methods=['GET'])
 def user_point():
-    user_id = request.args.get('user_id', 'guest')
-    db = get_db()
-    cur = db.cursor()
-    placeholder = get_placeholder()
-    
-    query = f"SELECT COUNT(*) FROM reports WHERE user_id={placeholder} AND for_userpage_type='신고' AND for_userpage_stage=3"
-    cur.execute(query, (user_id,))
-    report_count = cur.fetchone()[0]
-    
-    query = f"SELECT COUNT(*) FROM reports WHERE dispatch_user_id={placeholder} AND type='출동' AND ai_stage=1"
-    cur.execute(query, (user_id,))
-    dispatch_count = cur.fetchone()[0]
-    
-    cur.close()
-    point = report_count * 5000 + dispatch_count * 10000
-    return jsonify({"point": point})
+    try:
+        user_id = request.args.get('user_id', 'guest')
+        db = get_db()
+        if db is None:
+            return jsonify({'error': 'Database connection failed'}), 500
+            
+        cur = db.cursor()
+        placeholder = get_placeholder()
+        
+        query = f"SELECT COUNT(*) FROM reports WHERE user_id={placeholder} AND for_userpage_type='신고' AND for_userpage_stage=3"
+        cur.execute(query, (user_id,))
+        report_count = cur.fetchone()[0]
+        
+        query = f"SELECT COUNT(*) FROM reports WHERE dispatch_user_id={placeholder} AND type='출동' AND ai_stage=1"
+        cur.execute(query, (user_id,))
+        dispatch_count = cur.fetchone()[0]
+        
+        cur.close()
+        point = report_count * 5000 + dispatch_count * 10000
+        return jsonify({"point": point})
+    except Exception as e:
+        return handle_db_error(e)
 
 @app.route('/api/register', methods=['POST'])
 def register():
@@ -686,12 +766,14 @@ if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
     app.run(host='0.0.0.0', port=port)
 
-from flask_cors import cross_origin
-
 @app.after_request
 def after_request(response):
-    response.headers.add('Access-Control-Allow-Origin', 'https://front-production-9f96.up.railway.app')
-    response.headers.add('Access-Control-Allow-Credentials', 'true')
-    response.headers.add('Access-Control-Allow-Headers', 'Content-Type,Authorization,Accept,X-Requested-With')
-    response.headers.add('Access-Control-Allow-Methods', 'GET,POST,PUT,DELETE,OPTIONS')
+    allowed_origins = ['https://front-production-9f96.up.railway.app', 'http://localhost:3000']
+    origin = request.headers.get('Origin')
+    
+    if origin in allowed_origins:
+        response.headers.add('Access-Control-Allow-Origin', origin)
+        response.headers.add('Access-Control-Allow-Headers', 'Content-Type,Authorization,Accept,X-Requested-With')
+        response.headers.add('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE,OPTIONS')
+        response.headers.add('Access-Control-Allow-Credentials', 'true')
     return response
