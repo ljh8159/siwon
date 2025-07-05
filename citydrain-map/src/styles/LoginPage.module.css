@@ -1,0 +1,79 @@
+.bodyBackground {
+  min-height: 100vh;
+  width: 100vw;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.container {
+  width: 393px;
+  height: 852px;
+  background: #ffffff;
+  border-radius: 20px;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.18);
+  padding: 0px 24px 0px 24px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.loginForm {
+  width: 80%;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.inputField {
+  width: 100%;
+  padding: 12px 0px;
+  border: 1.5px solid #4b89e5;
+  border-radius: 8px;
+  font-size: 1rem;
+  background: #f7f8fa;
+  transition: border 0.2s;
+}
+
+.inputField:focus {
+  border: 1.5px solid #434ed7;
+  outline: none;
+  background: #fff;
+}
+
+.loginButton {
+  width: 100%;
+  padding: 12px 0;
+  background: #ffe066;
+  color: #222;
+  font-weight: bold;
+  border: none;
+  border-radius: 8px;
+  font-size: 1.1rem;
+  cursor: pointer;
+  margin-top: 8px;
+  transition: background 0.2s;
+}
+
+.loginButton:hover {
+  background: #ffd43b;
+}
+
+.signupButton {
+  width: 100%;
+  padding: 10px 0;
+  background: #f1f3f5;
+  color: #434ed7;
+  border: none;
+  border-radius: 8px;
+  font-size: 1rem;
+  font-weight: 500;
+  cursor: pointer;
+  margin-top: 2px;
+  transition: background 0.2s, color 0.2s;
+}
+
+.signupButton:hover {
+  background: #e9ecef;
+  color: #222;
+}

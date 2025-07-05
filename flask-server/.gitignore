@@ -1,0 +1,8 @@
+flask_env/
+__pycache__/
+uploads/
+reports.db
+*.pyc
+.env
+*.sqlite3
+*.log
