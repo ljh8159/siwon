@@ -30,7 +30,8 @@ import MapPage from './pages/MapPage';
 import LoginPage from './components/LoginPage';
 import SignupPage from './pages/SignupPage';
 
-const API_URL = process.env.REACT_APP_API_URL || 'https://backendflask-production-f4c6.up.railway.app';
+import config from './config';
+const API_URL = config.API_URL;
 
 function App() {
   const [stats, setStats] = useState({ blocked_count: 0, dispatched_count: 0 });
