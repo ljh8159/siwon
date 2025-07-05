@@ -167,78 +167,100 @@ def close_connection(exception):
         db.close()
 
 def init_db():
-    with app.app_context():
-        db = get_db()
-        cur = db.cursor()
-        # PostgreSQL과 SQLite 모두 호환되는 테이블 생성
-        if os.environ.get("DATABASE_URL"):
-            # PostgreSQL
-            cur.execute('''
-                CREATE TABLE IF NOT EXISTS reports (
-                    id SERIAL PRIMARY KEY,
-                    user_id TEXT,
-                    type TEXT,
-                    photo_filename TEXT,
-                    location TEXT,
-                    lat REAL,
-                    lng REAL,
-                    timestamp TEXT,
-                    ai_stage INTEGER,
-                    extra TEXT,
-                    dispatch_user_id TEXT,
-                    for_userpage_type TEXT,
-                    for_userpage_stage INTEGER
-                )
-            ''')
-        else:
-            # SQLite
-            cur.execute('''
-                CREATE TABLE IF NOT EXISTS reports (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    user_id TEXT,
-                    type TEXT,
-                    photo_filename TEXT,
-                    location TEXT,
-                    lat REAL,
-                    lng REAL,
-                    timestamp TEXT,
-                    ai_stage INTEGER,
-                    extra TEXT,
-                    dispatch_user_id TEXT,
-                    for_userpage_type TEXT,
-                    for_userpage_stage INTEGER
-                )
-            ''')
-        db.commit()
-        cur.close()
+    try:
+        with app.app_context():
+            db = get_db()
+            cur = db.cursor()
+            # PostgreSQL과 SQLite 모두 호환되는 테이블 생성
+            if os.environ.get("DATABASE_URL"):
+                print("Initializing PostgreSQL database...")
+                # PostgreSQL
+                cur.execute('''
+                    CREATE TABLE IF NOT EXISTS reports (
+                        id SERIAL PRIMARY KEY,
+                        user_id TEXT,
+                        type TEXT,
+                        photo_filename TEXT,
+                        location TEXT,
+                        lat REAL,
+                        lng REAL,
+                        timestamp TEXT,
+                        ai_stage INTEGER,
+                        extra TEXT,
+                        dispatch_user_id TEXT,
+                        for_userpage_type TEXT,
+                        for_userpage_stage INTEGER
+                    )
+                ''')
+                print("Reports table created successfully")
+            else:
+                print("Initializing SQLite database...")
+                # SQLite
+                cur.execute('''
+                    CREATE TABLE IF NOT EXISTS reports (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        user_id TEXT,
+                        type TEXT,
+                        photo_filename TEXT,
+                        location TEXT,
+                        lat REAL,
+                        lng REAL,
+                        timestamp TEXT,
+                        ai_stage INTEGER,
+                        extra TEXT,
+                        dispatch_user_id TEXT,
+                        for_userpage_type TEXT,
+                        for_userpage_stage INTEGER
+                    )
+                ''')
+                print("Reports table created successfully")
+            db.commit()
+            cur.close()
+    except Exception as e:
+        print(f"Error initializing database: {str(e)}")
+        raise
 
 def init_user_table():
-    with app.app_context():
-        db = get_db()
-        cur = db.cursor()
-        if os.environ.get("DATABASE_URL"):
-            # PostgreSQL
-            cur.execute('''
-                CREATE TABLE IF NOT EXISTS users (
-                    id SERIAL PRIMARY KEY,
-                    user_id TEXT UNIQUE,
-                    password TEXT
-                )
-            ''')
-        else:
-            # SQLite
-            cur.execute('''
-                CREATE TABLE IF NOT EXISTS users (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    user_id TEXT UNIQUE,
-                    password TEXT
-                )
-            ''')
-        db.commit()
-        cur.close()
+    try:
+        with app.app_context():
+            db = get_db()
+            cur = db.cursor()
+            if os.environ.get("DATABASE_URL"):
+                print("Initializing PostgreSQL users table...")
+                # PostgreSQL
+                cur.execute('''
+                    CREATE TABLE IF NOT EXISTS users (
+                        id SERIAL PRIMARY KEY,
+                        user_id TEXT UNIQUE,
+                        password TEXT
+                    )
+                ''')
+                print("Users table created successfully")
+            else:
+                print("Initializing SQLite users table...")
+                # SQLite
+                cur.execute('''
+                    CREATE TABLE IF NOT EXISTS users (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        user_id TEXT UNIQUE,
+                        password TEXT
+                    )
+                ''')
+                print("Users table created successfully")
+            db.commit()
+            cur.close()
+    except Exception as e:
+        print(f"Error initializing users table: {str(e)}")
+        raise
 
-init_db()
-init_user_table()
+# 서버 시작시 데이터베이스 초기화
+with app.app_context():
+    try:
+        init_db()
+        init_user_table()
+        print("Database initialization completed successfully")
+    except Exception as e:
+        print(f"Failed to initialize database: {str(e)}")
 
 @app.route('/')
 def index():
