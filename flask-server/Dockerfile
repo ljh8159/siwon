@@ -16,11 +16,18 @@ COPY requirements.txt .
 # Install Python dependencies
 RUN pip install --no-cache-dir -r requirements.txt
 
+# Copy the model file first (using .dockerignore to exclude it from later COPY)
+COPY mobilenetv2_stage_model.h5 .
+
 # Copy the rest of the application
 COPY . .
 
-# Create uploads directory
-RUN mkdir -p uploads
+# Create uploads directory and verify model file
+RUN mkdir -p uploads && \
+    if [ ! -f "mobilenetv2_stage_model.h5" ]; then \
+        echo "Error: Model file is missing!" && \
+        exit 1; \
+    fi
 
 # Set environment variables
 ENV PYTHONUNBUFFERED=1

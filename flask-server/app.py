@@ -25,7 +25,19 @@ if not os.path.exists(UPLOAD_FOLDER):
 
 MODEL_PATH = 'mobilenetv2_stage_model.h5'
 MODEL_IMG_SIZE = (224, 224)
-model = load_model(MODEL_PATH)
+
+# Check if model file exists
+if not os.path.exists(MODEL_PATH):
+    print(f"Error: Model file not found at {os.path.abspath(MODEL_PATH)}")
+    print("Current directory contents:", os.listdir('.'))
+else:
+    print(f"Loading model from {os.path.abspath(MODEL_PATH)}")
+    try:
+        model = load_model(MODEL_PATH)
+        print("Model loaded successfully")
+    except Exception as e:
+        print(f"Error loading model: {str(e)}")
+        raise
 
 def get_db():
     db = getattr(g, '_database', None)
