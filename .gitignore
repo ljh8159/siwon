@@ -7,6 +7,9 @@ __pycache__/
 *.pyo
 *.pyd
 
+# Keep model file
+!flask-server/mobilenetv2_stage_model.h5
+
 # Environment
 .env
 .venv/
