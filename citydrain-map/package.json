@@ -29,7 +29,7 @@
     "@types/react-router-dom": "^5.3.3"
   },
   "engines": {
-    "node": "16.x"
+    "node": "18.x"
   },
   "browserslist": {
     "production": [

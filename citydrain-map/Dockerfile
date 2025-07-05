@@ -22,8 +22,12 @@ FROM nginx:alpine
 # Copy built assets from build stage
 COPY --from=build /app/build /usr/share/nginx/html
 
-# Copy nginx config
+# Add custom nginx config
+RUN rm /etc/nginx/conf.d/default.conf
 COPY nginx.conf /etc/nginx/conf.d/default.conf
+
+# Create directory for logs
+RUN mkdir -p /var/log/nginx
 
 # Expose port
 EXPOSE 80
