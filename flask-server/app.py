@@ -16,6 +16,7 @@ import hashlib
 import secrets
 from datetime import datetime, timedelta
 import base64
+import h5py
 
 UPLOAD_FOLDER = 'uploads'
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif'}
@@ -48,11 +49,26 @@ try:
     
     if os.path.exists(MODEL_PATH):
         print(f"Loading weights from {MODEL_PATH}")
-        # 전체 모델에서 가중치만 추출하여 저장
-        temp_model = load_model(MODEL_PATH)
-        temp_model.save_weights(WEIGHTS_PATH)
-        model.load_weights(WEIGHTS_PATH)
-        print("Weights loaded successfully")
+        print(f"File size: {os.path.getsize(MODEL_PATH)} bytes")
+        
+        # Try to open the file with h5py first to check if it's a valid HDF5 file
+        try:
+            with h5py.File(MODEL_PATH, 'r') as f:
+                print("Successfully opened HDF5 file")
+                print("File contains following keys:", list(f.keys()))
+        except Exception as h5_error:
+            print(f"Error opening HDF5 file: {str(h5_error)}")
+        
+        try:
+            # 전체 모델에서 가중치만 추출하여 저장
+            temp_model = load_model(MODEL_PATH, compile=False)
+            temp_model.save_weights(WEIGHTS_PATH)
+            model.load_weights(WEIGHTS_PATH)
+            print("Weights loaded successfully")
+        except Exception as model_error:
+            print(f"Error loading model weights: {str(model_error)}")
+            raise
+            
     elif os.path.exists(WEIGHTS_PATH):
         print(f"Loading weights from {WEIGHTS_PATH}")
         model.load_weights(WEIGHTS_PATH)
