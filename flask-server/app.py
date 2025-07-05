@@ -27,14 +27,22 @@ app = Flask(__name__)
 
 # CORS 설정
 allowed_origins = os.environ.get('ALLOWED_ORIGINS', 'http://localhost:3000').split(',')
-CORS(app, resources={
-    r"/api/*": {
-        "origins": allowed_origins,
-        "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-        "allow_headers": ["Content-Type", "Authorization", "Accept", "X-Requested-With"],
-        "expose_headers": ["Content-Type", "Authorization"]
-    }
-})
+CORS(app, 
+    resources={
+        r"/api/*": {
+            "origins": allowed_origins,
+            "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+            "allow_headers": ["Content-Type", "Authorization", "Accept", "X-Requested-With"],
+            "expose_headers": ["Content-Type", "Authorization"],
+            "supports_credentials": True
+        }
+    },
+    allow_origins=allowed_origins,
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allow_headers=["Content-Type", "Authorization", "Accept", "X-Requested-With"],
+    expose_headers=["Content-Type", "Authorization"],
+    supports_credentials=True
+)
 
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 
@@ -664,6 +672,5 @@ def admin_approve():
     return jsonify({'result': 'success'})
 
 if __name__ == '__main__':
-    init_db()
-    init_user_table()
-    app.run(debug=True, host='0.0.0.0', port=int(os.environ.get("PORT", 5000)))
+    port = int(os.environ.get('PORT', 5000))
+    app.run(host='0.0.0.0', port=port)
