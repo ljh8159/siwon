@@ -18,6 +18,7 @@ from datetime import datetime, timedelta
 import base64
 import h5py
 import io
+from model_data import get_model_data
 
 UPLOAD_FOLDER = 'uploads'
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif'}
@@ -48,14 +49,14 @@ try:
     print("Creating model architecture")
     model = create_model()
     
-    # Try to load model from base64 encoded file first
+    # Try to load model from base64 data
     try:
-        with open('model.b64', 'rb') as f:
-            model_base64 = f.read().decode('utf-8')
-            model_bytes = base64.b64decode(model_base64)
-            with open(MODEL_PATH, 'wb') as f:
-                f.write(model_bytes)
-            print(f"Restored model file from base64, size: {len(model_bytes)} bytes")
+        print("Loading model from base64 data")
+        model_base64 = get_model_data()
+        model_bytes = base64.b64decode(model_base64)
+        with open(MODEL_PATH, 'wb') as f:
+            f.write(model_bytes)
+        print(f"Restored model file from base64, size: {len(model_bytes)} bytes")
     except Exception as e:
         print(f"Could not load base64 model: {str(e)}")
     
