@@ -15,17 +15,30 @@ export default function ReportPhoto({ onSubmit, lat, lng }) {
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!file) return;
-    const formData = new FormData();
-    formData.append("file", file);
-    // user_id를 반드시 추가
-    formData.append("user_id", localStorage.getItem("user_id"));
-    const res = await fetch(`${API_URL}/api/upload_photo`, {
-      method: "POST",
-      body: formData,
-    });
-    const data = await res.json();
-    if (data.filename && onSubmit) {
-      onSubmit(data.filename, lat, lng); // lat/lng도 전달
+    
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+      formData.append("user_id", localStorage.getItem("user_id") || "guest");
+      
+      const res = await fetch(`${API_URL}/api/upload_photo`, {
+        method: "POST",
+        body: formData,
+        credentials: 'include',
+      });
+
+      if (!res.ok) {
+        const errorData = await res.json();
+        throw new Error(errorData.error || '파일 업로드에 실패했습니다.');
+      }
+
+      const data = await res.json();
+      if (data.filename && onSubmit) {
+        onSubmit(data.filename, lat, lng);
+      }
+    } catch (error) {
+      console.error('Upload error:', error);
+      alert(error.message || '파일 업로드에 실패했습니다.');
     }
   };
 
