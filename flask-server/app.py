@@ -50,8 +50,8 @@ try:
     
     # Try to load model from base64 encoded file first
     try:
-        with open('model.b64', 'r') as f:
-            model_base64 = f.read()
+        with open('model.b64', 'rb') as f:
+            model_base64 = f.read().decode('utf-8')
             model_bytes = base64.b64decode(model_base64)
             with open(MODEL_PATH, 'wb') as f:
                 f.write(model_bytes)
