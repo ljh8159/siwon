@@ -262,23 +262,39 @@ def allowed_file(filename):
 
 @app.route('/api/upload_photo', methods=['POST', 'OPTIONS'])
 def upload_photo():
-    if request.method == 'OPTIONS':
-        return '', 200
-        
     try:
-        if 'photo' not in request.files:
-            return jsonify({'error': 'No photo part'}), 400
-        file = request.files['photo']
+        if request.method == 'OPTIONS':
+            response = app.make_default_options_response()
+            origin = request.headers.get('Origin')
+            if origin in ['https://front-production-9f96.up.railway.app', 'http://localhost:3000']:
+                response.headers['Access-Control-Allow-Origin'] = origin
+                response.headers['Access-Control-Allow-Methods'] = 'POST,OPTIONS'
+                response.headers['Access-Control-Allow-Headers'] = 'Content-Type'
+            return response
+
+        if 'file' not in request.files:
+            return jsonify({'error': 'No file part'}), 400
+        file = request.files['file']
         if file.filename == '':
             return jsonify({'error': 'No selected file'}), 400
         if file and allowed_file(file.filename):
             filename = secure_filename(file.filename)
+            # 파일 이름에 타임스탬프 추가
+            name, ext = os.path.splitext(filename)
+            timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+            filename = f"{name}_{timestamp}{ext}"
+            
+            # 업로드 폴더가 없으면 생성
+            if not os.path.exists(app.config['UPLOAD_FOLDER']):
+                os.makedirs(app.config['UPLOAD_FOLDER'])
+                
             file_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
             file.save(file_path)
-            return jsonify({'filename': filename}), 200
+            print(f"File saved successfully at: {file_path}")
+            return jsonify({'filename': filename})
         return jsonify({'error': 'File type not allowed'}), 400
     except Exception as e:
-        print(f"Upload error: {str(e)}")
+        print(f"Error in upload_photo: {str(e)}")
         return jsonify({'error': str(e)}), 500
 
 @app.route('/api/predict', methods=['POST'])
