@@ -23,13 +23,14 @@ app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 if not os.path.exists(UPLOAD_FOLDER):
     os.makedirs(UPLOAD_FOLDER)
 
-MODEL_PATH = 'mobilenetv2_stage_model.h5'
+MODEL_PATH = os.environ.get('MODEL_PATH', 'mobilenetv2_stage_model.h5')
 MODEL_IMG_SIZE = (224, 224)
 
 # Check if model file exists
 if not os.path.exists(MODEL_PATH):
     print(f"Error: Model file not found at {os.path.abspath(MODEL_PATH)}")
     print("Current directory contents:", os.listdir('.'))
+    print("Environment variables:", {k: v for k, v in os.environ.items() if 'MODEL' in k})
 else:
     print(f"Loading model from {os.path.abspath(MODEL_PATH)}")
     try:
