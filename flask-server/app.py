@@ -12,6 +12,7 @@ from tensorflow.keras.preprocessing import image
 import hashlib
 import secrets
 from datetime import datetime, timedelta
+import base64
 
 UPLOAD_FOLDER = 'uploads'
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif'}
@@ -26,6 +27,19 @@ if not os.path.exists(UPLOAD_FOLDER):
 # 모델 로딩
 MODEL_PATH = 'mobilenetv2_stage_model.h5'
 MODEL_IMG_SIZE = (224, 224)
+
+# 모델 파일이 있는지 확인하고 없으면 base64에서 복원
+if not os.path.exists(MODEL_PATH):
+    try:
+        print("Model file not found, trying to decode from base64")
+        with open('model.b64', 'r') as f:
+            model_base64 = f.read()
+        model_data = base64.b64decode(model_base64)
+        with open(MODEL_PATH, 'wb') as f:
+            f.write(model_data)
+        print("Successfully decoded model file")
+    except Exception as e:
+        print(f"Error decoding model file: {str(e)}")
 
 try:
     print(f"Loading model from {MODEL_PATH}")
