@@ -24,7 +24,17 @@ UPLOAD_FOLDER = 'uploads'
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif'}
 
 app = Flask(__name__)
-CORS(app, resources={r"/*": {"origins": "*"}})
+
+# CORS 설정
+allowed_origins = os.environ.get('ALLOWED_ORIGINS', 'http://localhost:3000').split(',')
+CORS(app, resources={
+    r"/api/*": {
+        "origins": allowed_origins,
+        "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+        "allow_headers": ["Content-Type", "Authorization"]
+    }
+})
+
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 
 if not os.path.exists(UPLOAD_FOLDER):
@@ -32,12 +42,17 @@ if not os.path.exists(UPLOAD_FOLDER):
 
 def create_model():
     """MobileNetV2 모델 아키텍처 생성"""
-    base_model = MobileNetV2(weights=None, include_top=False, input_shape=(224, 224, 3))
+    base_model = MobileNetV2(weights='imagenet', include_top=False, input_shape=(224, 224, 3))
     x = base_model.output
     x = GlobalAveragePooling2D()(x)
-    x = Dropout(0.5)(x)  # Dropout 레이어 추가
+    x = Dropout(0.5)(x)
     predictions = Dense(4, activation='softmax')(x)
     model = Model(inputs=base_model.input, outputs=predictions)
+    
+    # 기본 모델 레이어 고정
+    for layer in base_model.layers:
+        layer.trainable = False
+        
     return model
 
 # 모델 로딩
