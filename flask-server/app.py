@@ -27,8 +27,8 @@ app = Flask(__name__)
 
 # CORS 설정
 CORS(app, 
-    resources={r"/api/*": {
-        "origins": ["https://front-production-9f96.up.railway.app"],
+    resources={r"/*": {  # 모든 경로에 대해 CORS 허용
+        "origins": ["https://front-production-9f96.up.railway.app", "http://localhost:3000"],
         "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
         "allow_headers": ["Content-Type", "Authorization", "Accept", "X-Requested-With"],
         "expose_headers": ["Content-Type", "Authorization"],
@@ -42,7 +42,7 @@ def handle_preflight():
     if request.method == "OPTIONS":
         response = app.make_default_options_response()
         origin = request.headers.get('Origin')
-        if origin == 'https://front-production-9f96.up.railway.app':
+        if origin in ['https://front-production-9f96.up.railway.app', 'http://localhost:3000']:
             response.headers['Access-Control-Allow-Origin'] = origin
             response.headers['Access-Control-Allow-Methods'] = 'GET,PUT,POST,DELETE,OPTIONS'
             response.headers['Access-Control-Allow-Headers'] = 'Content-Type,Authorization,Accept,X-Requested-With'
@@ -53,7 +53,7 @@ def handle_preflight():
 @app.after_request
 def after_request(response):
     origin = request.headers.get('Origin')
-    if origin == 'https://front-production-9f96.up.railway.app':
+    if origin in ['https://front-production-9f96.up.railway.app', 'http://localhost:3000']:
         response.headers['Access-Control-Allow-Origin'] = origin
         response.headers['Access-Control-Allow-Methods'] = 'GET,PUT,POST,DELETE,OPTIONS'
         response.headers['Access-Control-Allow-Headers'] = 'Content-Type,Authorization,Accept,X-Requested-With'
