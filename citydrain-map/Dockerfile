@@ -12,7 +12,8 @@ RUN npm install
 # Copy project files
 COPY . .
 
-# Build the project
+# Set environment variables and build
+ENV NODE_OPTIONS=--openssl-legacy-provider
 RUN npm run build
 
 # Production stage
