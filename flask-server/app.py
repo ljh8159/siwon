@@ -35,7 +35,7 @@ def create_model():
     base_model = MobileNetV2(weights=None, include_top=False, input_shape=(224, 224, 3))
     x = base_model.output
     x = GlobalAveragePooling2D()(x)
-    x = Dense(1024, activation='relu')(x)
+    x = Dense(4, activation='relu')(x)  # 1024 -> 4로 변경
     predictions = Dense(4, activation='softmax')(x)
     model = Model(inputs=base_model.input, outputs=predictions)
     return model
@@ -69,6 +69,14 @@ try:
             with h5py.File(MODEL_PATH, 'r') as f:
                 print("Successfully opened HDF5 file")
                 print("File contains following keys:", list(f.keys()))
+                
+                # Print model architecture details
+                if 'model_weights' in f:
+                    print("\nModel architecture details:")
+                    def print_layer_info(name, obj):
+                        if 'kernel' in obj:
+                            print(f"Layer {name}, kernel shape: {obj['kernel'].shape}")
+                    f['model_weights'].visit(print_layer_info)
         except Exception as h5_error:
             print(f"Error opening HDF5 file: {str(h5_error)}")
         
