@@ -10,7 +10,7 @@ import numpy as np
 import tensorflow as tf
 from tensorflow.keras.models import Model, load_model
 from tensorflow.keras.applications import MobileNetV2
-from tensorflow.keras.layers import Dense, GlobalAveragePooling2D
+from tensorflow.keras.layers import Dense, GlobalAveragePooling2D, Dropout
 from tensorflow.keras.preprocessing import image
 import hashlib
 import secrets
@@ -35,7 +35,8 @@ def create_model():
     base_model = MobileNetV2(weights=None, include_top=False, input_shape=(224, 224, 3))
     x = base_model.output
     x = GlobalAveragePooling2D()(x)
-    predictions = Dense(4, activation='softmax')(x)  # 중간 레이어 제거
+    x = Dropout(0.5)(x)  # Dropout 레이어 추가
+    predictions = Dense(4, activation='softmax')(x)
     model = Model(inputs=base_model.input, outputs=predictions)
     return model
 
