@@ -27,30 +27,36 @@ app = Flask(__name__)
 
 # CORS 설정
 CORS(app, 
-    resources={r"/api/*": {
+    resources={r"/*": {
         "origins": ["https://front-production-9f96.up.railway.app", "http://localhost:3000"],
         "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
         "allow_headers": ["Content-Type", "Authorization", "Accept", "X-Requested-With"],
-        "supports_credentials": True
+        "supports_credentials": True,
+        "expose_headers": ["Content-Type", "Authorization"]
     }}
 )
 
 @app.after_request
 def after_request(response):
-    allowed_origins = ['https://front-production-9f96.up.railway.app', 'http://localhost:3000']
     origin = request.headers.get('Origin')
-    
-    if origin in allowed_origins:
+    if origin in ['https://front-production-9f96.up.railway.app', 'http://localhost:3000']:
         response.headers['Access-Control-Allow-Origin'] = origin
         response.headers['Access-Control-Allow-Methods'] = 'GET,PUT,POST,DELETE,OPTIONS'
         response.headers['Access-Control-Allow-Headers'] = 'Content-Type,Authorization,Accept,X-Requested-With'
         response.headers['Access-Control-Allow-Credentials'] = 'true'
+        response.headers['Access-Control-Expose-Headers'] = 'Content-Type,Authorization'
     return response
 
-app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
+# OPTIONS 요청 처리
+@app.route('/', defaults={'path': ''}, methods=['OPTIONS'])
+@app.route('/<path:path>', methods=['OPTIONS'])
+def handle_options(path):
+    return '', 200
 
-if not os.path.exists(UPLOAD_FOLDER):
-    os.makedirs(UPLOAD_FOLDER)
+app.config['UPLOAD_FOLDER'] = os.path.abspath(UPLOAD_FOLDER)
+
+if not os.path.exists(app.config['UPLOAD_FOLDER']):
+    os.makedirs(app.config['UPLOAD_FOLDER'])
 
 def create_model():
     """MobileNetV2 모델 아키텍처 생성"""
