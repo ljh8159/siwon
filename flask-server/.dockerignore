@@ -1,6 +1,3 @@
-# Exclude model file from second COPY (we copy it separately)
-mobilenetv2_stage_model.h5
-
 # Python
 __pycache__/
 *.pyc

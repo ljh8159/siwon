@@ -16,18 +16,19 @@ COPY requirements.txt .
 # Install Python dependencies
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy the model file first (using .dockerignore to exclude it from later COPY)
+# Copy the model file separately to ensure it's included
 COPY mobilenetv2_stage_model.h5 .
 
 # Copy the rest of the application
 COPY . .
 
-# Create uploads directory and verify model file
-RUN mkdir -p uploads && \
-    if [ ! -f "mobilenetv2_stage_model.h5" ]; then \
-        echo "Error: Model file is missing!" && \
-        exit 1; \
-    fi
+# Create uploads directory
+RUN mkdir -p uploads
+
+# Verify model file exists and is readable
+RUN ls -l mobilenetv2_stage_model.h5 && \
+    python3 -c "from tensorflow.keras.models import load_model; model = load_model('mobilenetv2_stage_model.h5')" || \
+    (echo "Error: Model file is missing or cannot be loaded!" && exit 1)
 
 # Set environment variables
 ENV PYTHONUNBUFFERED=1
