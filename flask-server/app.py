@@ -35,8 +35,7 @@ def create_model():
     base_model = MobileNetV2(weights=None, include_top=False, input_shape=(224, 224, 3))
     x = base_model.output
     x = GlobalAveragePooling2D()(x)
-    x = Dense(4, activation='relu')(x)  # 1024 -> 4로 변경
-    predictions = Dense(4, activation='softmax')(x)
+    predictions = Dense(4, activation='softmax')(x)  # 중간 레이어 제거
     model = Model(inputs=base_model.input, outputs=predictions)
     return model
 
@@ -73,19 +72,33 @@ try:
                 # Print model architecture details
                 if 'model_weights' in f:
                     print("\nModel architecture details:")
-                    def print_layer_info(name, obj):
-                        if 'kernel' in obj:
-                            print(f"Layer {name}, kernel shape: {obj['kernel'].shape}")
-                    f['model_weights'].visit(print_layer_info)
+                    model_weights = f['model_weights']
+                    for layer_name in model_weights.keys():
+                        layer = model_weights[layer_name]
+                        if isinstance(layer, h5py.Group):
+                            print(f"\nLayer: {layer_name}")
+                            for param_name in layer.keys():
+                                if isinstance(layer[param_name], h5py.Group):
+                                    for weight_name in layer[param_name].keys():
+                                        weight = layer[param_name][weight_name]
+                                        print(f"  {param_name}/{weight_name}: shape={weight.shape}")
         except Exception as h5_error:
             print(f"Error opening HDF5 file: {str(h5_error)}")
         
         try:
             # 전체 모델에서 가중치만 추출하여 저장
+            print("\nLoading original model...")
             temp_model = load_model(MODEL_PATH, compile=False)
+            print("Original model summary:")
+            temp_model.summary()
+            
+            print("\nSaving and loading weights...")
             temp_model.save_weights(WEIGHTS_PATH)
             model.load_weights(WEIGHTS_PATH)
             print("Weights loaded successfully")
+            
+            print("\nNew model summary:")
+            model.summary()
         except Exception as model_error:
             print(f"Error loading model weights: {str(model_error)}")
             raise
