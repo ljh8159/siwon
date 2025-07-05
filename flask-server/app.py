@@ -25,13 +25,27 @@ ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif'}
 
 app = Flask(__name__)
 
-# CORS 설정 단순화
+# CORS 설정
 CORS(app, 
-    origins=['https://front-production-9f96.up.railway.app', 'http://localhost:3000'],
-    supports_credentials=True,
-    methods=['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-    allow_headers=['Content-Type', 'Authorization', 'Accept', 'X-Requested-With']
+    resources={r"/api/*": {
+        "origins": ["https://front-production-9f96.up.railway.app", "http://localhost:3000"],
+        "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+        "allow_headers": ["Content-Type", "Authorization", "Accept", "X-Requested-With"],
+        "supports_credentials": True
+    }}
 )
+
+@app.after_request
+def after_request(response):
+    allowed_origins = ['https://front-production-9f96.up.railway.app', 'http://localhost:3000']
+    origin = request.headers.get('Origin')
+    
+    if origin in allowed_origins:
+        response.headers['Access-Control-Allow-Origin'] = origin
+        response.headers['Access-Control-Allow-Methods'] = 'GET,PUT,POST,DELETE,OPTIONS'
+        response.headers['Access-Control-Allow-Headers'] = 'Content-Type,Authorization,Accept,X-Requested-With'
+        response.headers['Access-Control-Allow-Credentials'] = 'true'
+    return response
 
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 
@@ -765,15 +779,3 @@ def admin_approve():
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
     app.run(host='0.0.0.0', port=port)
-
-@app.after_request
-def after_request(response):
-    allowed_origins = ['https://front-production-9f96.up.railway.app', 'http://localhost:3000']
-    origin = request.headers.get('Origin')
-    
-    if origin in allowed_origins:
-        response.headers.add('Access-Control-Allow-Origin', origin)
-        response.headers.add('Access-Control-Allow-Headers', 'Content-Type,Authorization,Accept,X-Requested-With')
-        response.headers.add('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE,OPTIONS')
-        response.headers.add('Access-Control-Allow-Credentials', 'true')
-    return response
