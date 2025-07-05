@@ -8,7 +8,9 @@ from werkzeug.utils import secure_filename
 
 import numpy as np
 import tensorflow as tf
-from tensorflow.keras.models import load_model
+from tensorflow.keras.models import Model, load_model
+from tensorflow.keras.applications import MobileNetV2
+from tensorflow.keras.layers import Dense, GlobalAveragePooling2D
 from tensorflow.keras.preprocessing import image
 import hashlib
 import secrets
@@ -25,26 +27,38 @@ app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 if not os.path.exists(UPLOAD_FOLDER):
     os.makedirs(UPLOAD_FOLDER)
 
+def create_model():
+    """MobileNetV2 모델 아키텍처 생성"""
+    base_model = MobileNetV2(weights=None, include_top=False, input_shape=(224, 224, 3))
+    x = base_model.output
+    x = GlobalAveragePooling2D()(x)
+    x = Dense(1024, activation='relu')(x)
+    predictions = Dense(4, activation='softmax')(x)
+    model = Model(inputs=base_model.input, outputs=predictions)
+    return model
+
 # 모델 로딩
 MODEL_PATH = 'mobilenetv2_stage_model.h5'
-SAVED_MODEL_PATH = 'saved_model'
+WEIGHTS_PATH = 'model_weights.h5'
 MODEL_IMG_SIZE = (224, 224)
 
 try:
-    print(f"Loading model from {MODEL_PATH}")
+    print("Creating model architecture")
+    model = create_model()
+    
     if os.path.exists(MODEL_PATH):
-        # H5 파일이 있으면 먼저 SavedModel로 변환
+        print(f"Loading weights from {MODEL_PATH}")
+        # 전체 모델에서 가중치만 추출하여 저장
         temp_model = load_model(MODEL_PATH)
-        tf.saved_model.save(temp_model, SAVED_MODEL_PATH)
-        print(f"Converted H5 model to SavedModel format at {SAVED_MODEL_PATH}")
-        model = temp_model
-    elif os.path.exists(SAVED_MODEL_PATH):
-        # SavedModel 형식으로 로드
-        print("Loading SavedModel format")
-        model = tf.saved_model.load(SAVED_MODEL_PATH)
-        print("Model loaded successfully")
+        temp_model.save_weights(WEIGHTS_PATH)
+        model.load_weights(WEIGHTS_PATH)
+        print("Weights loaded successfully")
+    elif os.path.exists(WEIGHTS_PATH):
+        print(f"Loading weights from {WEIGHTS_PATH}")
+        model.load_weights(WEIGHTS_PATH)
+        print("Weights loaded successfully")
     else:
-        print("No model file found")
+        print("No model weights found")
         model = None
 except Exception as e:
     print(f"Error loading model: {str(e)}")
