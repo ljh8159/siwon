@@ -1,20 +1,28 @@
 # Build stage
 FROM node:18-alpine as build
 
+# Install basic tools
+RUN apk add --no-cache python3 make g++
+
 WORKDIR /app
 
 # Copy package files
 COPY package*.json ./
 
-# Install dependencies
-RUN npm install
+# Install dependencies with verbose logging
+ENV NODE_ENV=development
+RUN npm install --verbose
 
 # Copy project files
 COPY . .
 
 # Set environment variables and build
+ENV NODE_ENV=production
 ENV NODE_OPTIONS=--openssl-legacy-provider
-RUN npm run build
+ENV CI=true
+
+# Build with verbose logging
+RUN npm run build || (cat /root/.npm/_logs/*-debug.log && exit 1)
 
 # Production stage
 FROM nginx:alpine
