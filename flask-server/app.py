@@ -7,6 +7,7 @@ from flask_cors import CORS
 from werkzeug.utils import secure_filename
 
 import numpy as np
+import tensorflow as tf
 from tensorflow.keras.models import load_model
 from tensorflow.keras.preprocessing import image
 import hashlib
@@ -26,25 +27,25 @@ if not os.path.exists(UPLOAD_FOLDER):
 
 # 모델 로딩
 MODEL_PATH = 'mobilenetv2_stage_model.h5'
+SAVED_MODEL_PATH = 'saved_model'
 MODEL_IMG_SIZE = (224, 224)
-
-# 모델 파일이 있는지 확인하고 없으면 base64에서 복원
-if not os.path.exists(MODEL_PATH):
-    try:
-        print("Model file not found, trying to decode from base64")
-        with open('model.b64', 'r') as f:
-            model_base64 = f.read()
-        model_data = base64.b64decode(model_base64)
-        with open(MODEL_PATH, 'wb') as f:
-            f.write(model_data)
-        print("Successfully decoded model file")
-    except Exception as e:
-        print(f"Error decoding model file: {str(e)}")
 
 try:
     print(f"Loading model from {MODEL_PATH}")
-    model = load_model(MODEL_PATH)
-    print("Model loaded successfully")
+    if os.path.exists(MODEL_PATH):
+        # H5 파일이 있으면 먼저 SavedModel로 변환
+        temp_model = load_model(MODEL_PATH)
+        tf.saved_model.save(temp_model, SAVED_MODEL_PATH)
+        print(f"Converted H5 model to SavedModel format at {SAVED_MODEL_PATH}")
+        model = temp_model
+    elif os.path.exists(SAVED_MODEL_PATH):
+        # SavedModel 형식으로 로드
+        print("Loading SavedModel format")
+        model = tf.saved_model.load(SAVED_MODEL_PATH)
+        print("Model loaded successfully")
+    else:
+        print("No model file found")
+        model = None
 except Exception as e:
     print(f"Error loading model: {str(e)}")
     model = None
