@@ -1,6 +1,9 @@
 import React, { useState } from "react";
 import axios from "axios";
-import { useLocation } from "react-router-dom";
+import { useLocation, useHistory } from "react-router-dom";
+import config from '../config';
+
+const API_URL = config.API_URL;
 
 export default function DispatchAiCheck({ onSuccess, onFail }) {
   const [loading, setLoading] = useState(false);
@@ -20,7 +23,6 @@ export default function DispatchAiCheck({ onSuccess, onFail }) {
     setLoading(true);
     try {
       // Flask 서버에 예측 요청
-      const API_URL = process.env.REACT_APP_API_URL || 'http://127.0.0.1:5000';
       const res = await axios.post(`${API_URL}/api/predict`, {
         filename,
       });

@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { useHistory } from 'react-router-dom';
+import config from '../config';
 
-const API_URL = process.env.REACT_APP_API_URL || 'https://backendflask-production-f4c6.up.railway.app';
+const API_URL = config.API_URL;
 
 function SignupPage() {
   const [form, setForm] = useState({ user_id: '', password: '' });

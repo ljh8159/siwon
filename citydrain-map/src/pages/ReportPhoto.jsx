@@ -1,4 +1,8 @@
 import React, { useRef, useState } from "react";
+import { useHistory } from 'react-router-dom';
+import config from '../config';
+
+const API_URL = config.API_URL;
 
 export default function ReportPhoto({ onSubmit, lat, lng }) {
   const fileInputRef = useRef(null);
@@ -15,7 +19,6 @@ export default function ReportPhoto({ onSubmit, lat, lng }) {
     formData.append("file", file);
     // user_id를 반드시 추가
     formData.append("user_id", localStorage.getItem("user_id"));
-    const API_URL = process.env.REACT_APP_API_URL || 'http://127.0.0.1:5000';
     const res = await fetch(`${API_URL}/api/upload_photo`, {
       method: "POST",
       body: formData,

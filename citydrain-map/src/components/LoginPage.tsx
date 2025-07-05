@@ -4,8 +4,9 @@ import { useHistory } from 'react-router-dom';
 import styles from '../styles/LoginPage.module.css';
 import floodmark from '../assets/floodmark.png'; // 이미지 import
 import moismark from '../assets/moismark.png';   // 필요시 추가
+import config from '../config';
 
-const API_URL = process.env.REACT_APP_API_URL || 'https://backendflask-production-f4c6.up.railway.app';
+const API_URL = config.API_URL;
 
 function LoginPage({ setIsLoggedIn, setUserId }: { setIsLoggedIn: (v: boolean) => void, setUserId: (v: string) => void }) {
   const [username, setUsername] = useState('');
