@@ -42,7 +42,7 @@ def create_model():
 
 # 모델 로딩
 MODEL_PATH = 'mobilenetv2_stage_model.h5'
-WEIGHTS_PATH = 'model_weights.h5'
+WEIGHTS_PATH = 'model.weights.h5'
 MODEL_IMG_SIZE = (224, 224)
 
 try:
