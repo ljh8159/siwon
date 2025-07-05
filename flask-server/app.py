@@ -31,7 +31,8 @@ CORS(app, resources={
     r"/api/*": {
         "origins": allowed_origins,
         "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-        "allow_headers": ["Content-Type", "Authorization"]
+        "allow_headers": ["Content-Type", "Authorization", "Accept", "X-Requested-With"],
+        "expose_headers": ["Content-Type", "Authorization"]
     }
 })
 
@@ -251,9 +252,15 @@ def upload_photo():
     if file.filename == '':
         return jsonify({'error': 'No selected file'}), 400
     if file and allowed_file(file.filename):
-        filename = secure_filename(file.filename)
-        file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
-        return jsonify({'filename': filename})
+        # 파일 이름이 중복되지 않도록 타임스탬프 추가
+        filename = datetime.now().strftime("%Y%m%d_%H%M%S_") + secure_filename(file.filename)
+        filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+        file.save(filepath)
+        return jsonify({
+            'success': True,
+            'filename': filename,
+            'filepath': filepath
+        })
     return jsonify({'error': 'Invalid file type'}), 400
 
 @app.route('/api/predict', methods=['POST'])
