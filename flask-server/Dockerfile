@@ -16,8 +16,13 @@ COPY requirements.txt .
 # Install Python dependencies
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy the model file separately to ensure it's included
+# Copy and verify the model file first
 COPY mobilenetv2_stage_model.h5 .
+RUN FILE_SIZE=$(stat -f %z mobilenetv2_stage_model.h5 || stat -c %s mobilenetv2_stage_model.h5) && \
+    if [ "$FILE_SIZE" -lt 1000000 ]; then \
+        echo "Error: Model file size ($FILE_SIZE bytes) is too small!" && \
+        exit 1; \
+    fi
 
 # Copy the rest of the application
 COPY . .
@@ -25,10 +30,9 @@ COPY . .
 # Create uploads directory
 RUN mkdir -p uploads
 
-# Verify model file exists and is readable
-RUN ls -l mobilenetv2_stage_model.h5 && \
-    python3 -c "from tensorflow.keras.models import load_model; model = load_model('mobilenetv2_stage_model.h5')" || \
-    (echo "Error: Model file is missing or cannot be loaded!" && exit 1)
+# Verify model file is readable
+RUN python3 -c "from tensorflow.keras.models import load_model; model = load_model('mobilenetv2_stage_model.h5')" || \
+    (echo "Error: Model file cannot be loaded!" && exit 1)
 
 # Set environment variables
 ENV PYTHONUNBUFFERED=1
