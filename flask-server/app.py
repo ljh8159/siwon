@@ -153,16 +153,35 @@ def get_db():
     if db is None:
         try:
             database_url = os.environ.get("DATABASE_URL")
+            print(f"Attempting to connect to database with URL: {database_url}")
+            
             if database_url:
+                # PostgreSQL URL 수정 (필요한 경우)
+                if database_url.startswith("postgres://"):
+                    database_url = database_url.replace("postgres://", "postgresql://", 1)
                 # 프로덕션 환경: PostgreSQL 사용
-                db = g._database = psycopg2.connect(database_url)
+                db = g._database = psycopg2.connect(
+                    database_url,
+                    cursor_factory=psycopg2.extras.DictCursor
+                )
+                print("Successfully connected to PostgreSQL database")
             else:
                 # 로컬 개발 환경: SQLite 사용
                 db = g._database = sqlite3.connect('reports.db')
                 db.row_factory = sqlite3.Row
+                print("Successfully connected to SQLite database")
+            
+            # 연결 테스트
+            cur = db.cursor()
+            cur.execute('SELECT 1')
+            cur.close()
+            
+            return db
         except Exception as e:
             print(f"Database connection error: {str(e)}")
-            return None
+            # 연결 실패 시 500 에러 발생
+            from flask import abort
+            abort(500, description=f"Database connection failed: {str(e)}")
     return db
 
 def get_placeholder():
@@ -781,6 +800,14 @@ def admin_approve():
     db.commit()
     cur.close()
     return jsonify({'result': 'success'})
+
+# 데이터베이스 에러 핸들러 추가
+@app.errorhandler(500)
+def handle_500_error(e):
+    return jsonify({
+        "error": "Internal server error",
+        "message": str(e.description) if hasattr(e, 'description') else "Unknown error"
+    }), 500
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
