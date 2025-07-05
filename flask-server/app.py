@@ -23,46 +23,17 @@ app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 if not os.path.exists(UPLOAD_FOLDER):
     os.makedirs(UPLOAD_FOLDER)
 
-# 모델 관련 상수
-MODEL_PATH = os.environ.get('MODEL_PATH', 'mobilenetv2_stage_model.h5')
-MODEL_IMG_SIZE = (224, 224)  # 이미지 크기 상수 추가
+# 모델 로딩
+MODEL_PATH = 'mobilenetv2_stage_model.h5'
+MODEL_IMG_SIZE = (224, 224)
 
-# 모델 파일 존재 여부 확인
-if not os.path.exists(MODEL_PATH):
-    print(f"Error: Model file not found at {os.path.abspath(MODEL_PATH)}")
-    # 대체 경로 시도
-    alt_paths = [
-        './mobilenetv2_stage_model.h5',
-        '../mobilenetv2_stage_model.h5',
-        '/app/mobilenetv2_stage_model.h5'
-    ]
-    for path in alt_paths:
-        print(f"Trying alternative path: {os.path.abspath(path)}")
-        if os.path.exists(path):
-            MODEL_PATH = path
-            print(f"Found model at: {os.path.abspath(MODEL_PATH)}")
-            break
-    else:
-        print("Error: Could not find model file in any location")
-        print(f"Environment variables: {dict(os.environ)}")
-
-# 모델 파일 크기 확인
-try:
-    model_size = os.path.getsize(MODEL_PATH)
-    print(f"Model file size: {model_size} bytes")
-except Exception as e:
-    print(f"Error checking model file size: {str(e)}")
-
-# 모델 로드 시도
 try:
     print(f"Loading model from {MODEL_PATH}")
     model = load_model(MODEL_PATH)
     print("Model loaded successfully")
 except Exception as e:
     print(f"Error loading model: {str(e)}")
-    # 에러가 발생해도 서버는 계속 실행
     model = None
-    print("Warning: Server will start without model functionality")
 
 def get_db():
     db = getattr(g, '_database', None)
