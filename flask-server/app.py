@@ -17,6 +17,7 @@ import secrets
 from datetime import datetime, timedelta
 import base64
 import h5py
+import io
 
 UPLOAD_FOLDER = 'uploads'
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif'}
@@ -46,6 +47,17 @@ MODEL_IMG_SIZE = (224, 224)
 try:
     print("Creating model architecture")
     model = create_model()
+    
+    # Try to load model from base64 encoded file first
+    try:
+        with open('model.b64', 'r') as f:
+            model_base64 = f.read()
+            model_bytes = base64.b64decode(model_base64)
+            with open(MODEL_PATH, 'wb') as f:
+                f.write(model_bytes)
+            print(f"Restored model file from base64, size: {len(model_bytes)} bytes")
+    except Exception as e:
+        print(f"Could not load base64 model: {str(e)}")
     
     if os.path.exists(MODEL_PATH):
         print(f"Loading weights from {MODEL_PATH}")
