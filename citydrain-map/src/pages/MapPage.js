@@ -73,12 +73,18 @@ const MapPage = () => {
         
         console.log(`유효한 신고 데이터: ${validReports.length}개`);
         
-        validReports.forEach((report, index) => {
+        // 마커 생성을 순차적으로 처리하여 안정성 향상
+        for (let index = 0; index < validReports.length; index++) {
+          const report = validReports[index];
+          
           // 좌표를 숫자로 변환
           const lng = parseFloat(report.lng);
           const lat = parseFloat(report.lat);
           
-          console.log(`마커 ${index + 1}: lng=${lng}, lat=${lat}, location=${report.location}, stage=${report.ai_stage}`);
+          console.log(`=== 마커 ${index + 1} 생성 시작 ===`);
+          console.log(`원본 데이터: lng=${report.lng}, lat=${report.lat}`);
+          console.log(`변환된 좌표: lng=${lng}, lat=${lat}`);
+          console.log(`위치: ${report.location}, 단계: ${report.ai_stage}`);
           
           // 각 마커마다 고유한 ID 생성
           const markerId = `marker-${report.id || index}`;
@@ -118,14 +124,18 @@ const MapPage = () => {
           const el = document.createElement('div');
           el.className = 'report-marker';
           el.id = markerId;
-          el.style.background = markerColor;
-          el.style.width = '16px';
-          el.style.height = '16px';
-          el.style.borderRadius = '50%';
-          el.style.border = '3px solid white';
-          el.style.boxShadow = '0 2px 8px rgba(0,0,0,0.3)';
-          el.style.cursor = 'pointer';
-          el.style.position = 'relative';
+          el.style.cssText = `
+            background: ${markerColor};
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            border: 3px solid white;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+            cursor: pointer;
+            position: absolute;
+            z-index: 1;
+            pointer-events: auto;
+          `;
           el.title = markerTitle;
           
           // 마커 클릭 시 팝업 표시
@@ -174,17 +184,34 @@ const MapPage = () => {
           const marker = new maplibregl.Marker({ 
             element: el, 
             anchor: 'bottom',
-            pitchAlignment: 'map',
-            rotationAlignment: 'map'
+            pitchAlignment: 'viewport',
+            rotationAlignment: 'viewport'
           });
           
-          // 좌표 설정 및 지도에 추가
-          marker.setLngLat([lng, lat]).addTo(map);
+          // 좌표 설정 및 지도에 추가 (단계별로 분리)
+          marker.setLngLat([lng, lat]);
+          marker.addTo(map);
+          
+          // 마커가 올바르게 추가되었는지 확인 (즉시 확인)
+          const markerLngLat = marker.getLngLat();
+          console.log(`마커 ${index + 1} 실제 좌표 확인:`, markerLngLat);
+          if (markerLngLat.lng !== lng || markerLngLat.lat !== lat) {
+            console.warn(`마커 ${index + 1} 좌표 불일치! 설정: [${lng}, ${lat}], 실제: [${markerLngLat.lng}, ${markerLngLat.lat}]`);
+          }
+          
+          // 마커 요소가 DOM에 제대로 추가되었는지 확인
+          const markerElement = document.getElementById(markerId);
+          if (!markerElement) {
+            console.warn(`마커 ${index + 1} 요소가 DOM에 없음!`);
+          }
           
           // 마커 참조 저장
           markerRefs.current.push(marker);
           console.log(`마커 ${index + 1} 추가됨 (ID: ${markerId}, 색상: ${markerColor}, 좌표: [${lng}, ${lat}])`);
-        });
+          console.log(`마커 요소 확인:`, el);
+          console.log(`마커 객체 확인:`, marker);
+          console.log(`=== 마커 ${index + 1} 생성 완료 ===`);
+        }
       } else {
         console.warn('데이터가 배열이 아닙니다:', data);
       }
@@ -223,8 +250,8 @@ const MapPage = () => {
           const marker = new maplibregl.Marker({ 
             element: el,
             anchor: 'bottom',
-            pitchAlignment: 'map',
-            rotationAlignment: 'map'
+            pitchAlignment: 'viewport',
+            rotationAlignment: 'viewport'
           })
             .setLngLat([box.center_lon, box.center_lat])  // [경도, 위도] 순서로 정확히 설정
             .addTo(map);
@@ -238,13 +265,18 @@ const MapPage = () => {
 
   // 지도 생성 및 마커/레이어 로딩
   useEffect(() => {
-    let map = new maplibregl.Map({
+    if (mapRef.current) return;
+
+    const map = new maplibregl.Map({
       container: 'map',
-      style: 'https://basemaps.cartocdn.com/gl/positron-gl-style/style.json',
-      center: [128.35, 36.13],
-      zoom: 13
+      style: `https://api.maptiler.com/maps/basic-v2/style.json?key=${config.MAPTILER_KEY}`,
+      center: [127.0, 37.5],  // 서울 중심 좌표
+      zoom: 10,
+      maxBounds: [
+        [124, 33],  // 남서쪽 경계
+        [132, 39]   // 북동쪽 경계
+      ]
     });
-    mapRef.current = map;
 
     map.on('load', () => {
       // 침수흔적도 불러오기
@@ -291,12 +323,21 @@ const MapPage = () => {
       loadToolboxMarkers(map);
     });
 
+    // 지도 이동 완료 후에만 마커 위치 업데이트
+    map.on('moveend', () => {
+      markerRefs.current.forEach(marker => {
+        const currentLngLat = marker.getLngLat();
+        marker.setLngLat(currentLngLat);
+      });
+    });
+
+    mapRef.current = map;
+
     return () => {
-      if (map) map.remove();
       clearMarkers();
       clearToolboxMarkers();
+      map.remove();
     };
-    // eslint-disable-next-line
   }, []);
 
   // zoom 이벤트에 따라 toolbox 마커 크기/표시 동적 제어
