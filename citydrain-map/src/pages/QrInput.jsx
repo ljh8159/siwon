@@ -87,10 +87,9 @@ export default function QrInput({ onSubmit }) {
   const handleSubmit = (e) => {
     e.preventDefault();
     if (!qrType) return;
-    // 좌표값이 없으면 null로 전달
-    const latValue = lat ? parseFloat(lat) : null;
-    const lngValue = lng ? parseFloat(lng) : null;
-    // for_userpage_type: '신고' 또는 '출동' (qrType이 report면 '신고', dispatch면 '출동')
+    // QR에서 읽은 위도/경도 값을 문자열 그대로 전달
+    const latValue = lat || null;
+    const lngValue = lng || null;
     const for_userpage_type = qrType === "report" ? "신고" : "출동";
     if (onSubmit) {
       onSubmit({
@@ -98,7 +97,7 @@ export default function QrInput({ onSubmit }) {
         inputValue,
         lat: latValue,
         lng: lngValue,
-        for_userpage_type, // 추가
+        for_userpage_type,
       });
     }
     if (qrType === "report") {
