@@ -11,8 +11,8 @@ CREATE TABLE IF NOT EXISTS reports (
     type TEXT,
     photo_filename TEXT,
     location TEXT,
-    lat REAL,
-    lng REAL,
+    lat TEXT,
+    lng TEXT,
     timestamp TEXT,
     ai_stage INTEGER,
     extra TEXT
