@@ -1,6 +1,6 @@
 const config = {
-  // Railway 백엔드 주소를 직접 사용
-  API_URL: 'https://backendflask-production-f4c6.up.railway.app'
+  // 로컬 개발 환경용 Flask 서버 주소
+  API_URL: 'http://localhost:5001'
 };
 
 export default config; 
