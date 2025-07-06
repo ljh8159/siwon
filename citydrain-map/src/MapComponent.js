@@ -1,7 +1,6 @@
 // MapComponent.js
 import React, { useEffect, useRef, useState } from 'react';
 import maplibregl from 'maplibre-gl';
-import 'maplibre-gl/dist/maplibre-gl.css';
 
 const API_URL = process.env.REACT_APP_API_URL || 'https://backendflask-production-f4c6.up.railway.app';
 
@@ -15,7 +14,7 @@ const MapComponent = () => {
   // 지도 및 DB 마커 로딩
   useEffect(() => {
     const map = new maplibregl.Map({
-      container: 'map',
+      container: 'map-component',
       style: 'https://basemaps.cartocdn.com/gl/positron-gl-style/style.json',
       center: [127.26442098, 36.501681024],
       zoom: 13
@@ -27,19 +26,7 @@ const MapComponent = () => {
       loadReports();
     });
 
-    // 지도 확대/축소 시 마커 위치 재확인
-    map.on('zoomend', () => {
-      markerRefs.current.forEach(marker => {
-        const el = marker.getElement();
-        if (el) {
-          const transform = el.style.transform;
-          if (!transform || transform === 'none') {
-            const lngLat = marker.getLngLat();
-            marker.setLngLat(lngLat);
-          }
-        }
-      });
-    });
+
 
     // 지도 클릭 시 마커 추가
     map.on('click', (e) => {
@@ -92,20 +79,53 @@ const MapComponent = () => {
       markerRefs.current = [];
       
       data.forEach(report => {
-        if (report.ai_stage === 3 && report.lat && report.lng) {
+        if (report.lat && report.lng) {  // 모든 단계의 마커 표시
           // 좌표를 숫자로 변환하고 유효성 검사
           const lng = parseFloat(report.lng);
           const lat = parseFloat(report.lat);
           
-          // 유효한 좌표인지 확인
+          // 유효한 좌표인지 확인 (한국 지역 좌표 범위)
           if (!isNaN(lng) && !isNaN(lat) && 
-              lng >= -180 && lng <= 180 && 
-              lat >= -90 && lat <= 90) {
+              lng >= 124 && lng <= 132 && 
+              lat >= 33 && lat <= 39) {
+            
+            console.log(`마커 생성: lng=${lng}, lat=${lat}, location=${report.location}`);
+            
+            // 마커 색상을 단계에 따라 다르게 설정
+            let markerColor = '#ff4444'; // 기본 빨간색
+            let markerTitle = `신고 위치: ${report.location || '위치 정보 없음'}`;
+            
+            if (report.ai_stage) {
+              switch (report.ai_stage) {
+                case 1:
+                  markerColor = '#4CAF50'; // 초록색 - 출동 완료
+                  markerTitle = `출동 완료: ${report.location || '위치 정보 없음'}`;
+                  break;
+                case 2:
+                  markerColor = '#FF9800'; // 주황색 - 검토 중
+                  markerTitle = `검토 중: ${report.location || '위치 정보 없음'}`;
+                  break;
+                case 3:
+                  markerColor = '#ff4444'; // 빨간색 - 막힘 확인
+                  markerTitle = `막힘 확인: ${report.location || '위치 정보 없음'}`;
+                  break;
+                case 4:
+                  markerColor = '#9C27B0'; // 보라색 - 정상
+                  markerTitle = `정상: ${report.location || '위치 정보 없음'}`;
+                  break;
+                case 5:
+                  markerColor = '#607D8B'; // 회색 - 취소
+                  markerTitle = `취소됨: ${report.location || '위치 정보 없음'}`;
+                  break;
+                default:
+                  markerColor = '#ff4444';
+              }
+            }
             
             const el = document.createElement('div');
             el.className = 'report-marker';
             el.style.cssText = `
-              background: #ff4444;
+              background: ${markerColor};
               width: 16px;
               height: 16px;
               border-radius: 50%;
@@ -113,7 +133,7 @@ const MapComponent = () => {
               box-shadow: 0 2px 8px rgba(0,0,0,0.3);
               cursor: pointer;
             `;
-            el.title = report.location || '';
+            el.title = markerTitle;
             
             const marker = new maplibregl.Marker({ 
               element: el, 
@@ -121,10 +141,12 @@ const MapComponent = () => {
               pitchAlignment: 'map',
               rotationAlignment: 'map'
             })
-              .setLngLat([lng, lat])
+              .setLngLat([lng, lat])  // [경도, 위도] 순서로 정확히 설정
               .addTo(mapRef.current);
               
             markerRefs.current.push(marker);
+          } else {
+            console.warn(`유효하지 않은 좌표: lng=${lng}, lat=${lat}, location=${report.location}`);
           }
         }
       });
@@ -145,7 +167,7 @@ const MapComponent = () => {
         />
       </label>
       <div style={{ width: '100%', height: '500px' }}>
-        <div id="map" style={{ width: '100%', height: '100%' }} ref={mapRef}></div>
+        <div id="map-component" style={{ width: '100%', height: '100%' }} ref={mapRef}></div>
       </div>
       <p>🗺️ 현재 클릭한 주소: <strong>{address}</strong></p>
     </div>

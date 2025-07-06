@@ -4,7 +4,6 @@ import proj4 from "proj4";
 import maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import config from '../config';
-import Big from 'big.js';
 
 const API_URL = config.API_URL;
 
@@ -63,13 +62,16 @@ const MapPage = () => {
       
       if (data && Array.isArray(data)) {
         data.forEach((report, index) => {
-          // Big.js로 고정밀 변환 후 Number로 변환 (JS Number 한계까지 최대한 정확)
-          const lng = Number(Big(report.lng).toString());
-          const lat = Number(Big(report.lat).toString());
+          // 좌표를 숫자로 변환하고 유효성 검사
+          const lng = parseFloat(report.lng);
+          const lat = parseFloat(report.lat);
           
-          console.log(`마커 ${index + 1}: lat=${lat}, lng=${lng}, location=${report.location}, stage=${report.ai_stage}`);
+          console.log(`마커 ${index + 1}: lng=${lng}, lat=${lat}, location=${report.location}, stage=${report.ai_stage}`);
           
-          if (!isNaN(lng) && !isNaN(lat)) {
+          // 유효한 좌표인지 확인 (한국 지역 좌표 범위) - 모든 단계의 마커 표시
+          if (!isNaN(lng) && !isNaN(lat) && 
+              lng >= 124 && lng <= 132 && 
+              lat >= 33 && lat <= 39) {
             // 마커 색상을 단계에 따라 다르게 설정
             let markerColor = '#ff4444'; // 기본 빨간색
             let markerTitle = `신고 위치: ${report.location || '위치 정보 없음'}`;
@@ -117,7 +119,7 @@ const MapPage = () => {
             // 마커 클릭 시 팝업 표시
             el.addEventListener('click', () => {
               // 기존 팝업 제거
-              const existingPopup = document.querySelector('.maplibre-popup');
+              const existingPopup = document.querySelector('.maplibregl-popup');
               if (existingPopup) {
                 existingPopup.remove();
               }
@@ -139,7 +141,8 @@ const MapPage = () => {
               const popup = new maplibregl.Popup({
                 closeButton: true,
                 closeOnClick: false,
-                maxWidth: '300px'
+                maxWidth: '300px',
+                className: 'custom-popup'
               })
               .setLngLat([lng, lat])
               .setHTML(`
@@ -147,7 +150,7 @@ const MapPage = () => {
                   <h4 style="margin: 0 0 8px 0; color: #333;">🚨 ${statusText}</h4>
                   <p style="margin: 5px 0; font-size: 14px;"><strong>위치:</strong> ${report.location || '위치 정보 없음'}</p>
                   <p style="margin: 5px 0; font-size: 14px;"><strong>신고 시간:</strong> ${new Date(report.timestamp).toLocaleString('ko-KR')}</p>
-                  <p style="margin: 5px 0; font-size: 12px; color: #666;">좌표: ${report.lat}, ${report.lng}</p>
+                  <p style="margin: 5px 0; font-size: 12px; color: #666;">좌표: ${lng}, ${lat}</p>
                   ${report.ai_stage ? `<p style="margin: 5px 0; font-size: 12px; color: #666;">단계: ${report.ai_stage}</p>` : ''}
                 </div>
               `);
@@ -161,13 +164,13 @@ const MapPage = () => {
               pitchAlignment: 'map',
               rotationAlignment: 'map'
             })
-              .setLngLat([lng, lat])
+              .setLngLat([lng, lat])  // [경도, 위도] 순서로 정확히 설정
               .addTo(map);
             
             markerRefs.current.push(marker);
             console.log(`마커 ${index + 1} 추가됨 (색상: ${markerColor})`);
           } else {
-            console.warn(`마커 ${index + 1}: 유효하지 않은 좌표 - lat=${lat}, lng=${lng}`);
+            console.warn(`마커 ${index + 1}: 유효하지 않은 좌표 - lng=${lng}, lat=${lat}`);
           }
         });
       } else {
@@ -211,7 +214,7 @@ const MapPage = () => {
             pitchAlignment: 'map',
             rotationAlignment: 'map'
           })
-            .setLngLat([box.center_lon, box.center_lat])
+            .setLngLat([box.center_lon, box.center_lat])  // [경도, 위도] 순서로 정확히 설정
             .addTo(map);
           toolboxMarkerRefs.current.push(marker);
         });
@@ -284,7 +287,7 @@ const MapPage = () => {
     // eslint-disable-next-line
   }, []);
 
-  // zoom 이벤트에 따라 toolbox 마커 크기/표시 동적 제어 및 마커 위치 재확인
+  // zoom 이벤트에 따라 toolbox 마커 크기/표시 동적 제어
   useEffect(() => {
     const map = mapRef.current;
     if (!map) return;
@@ -299,26 +302,10 @@ const MapPage = () => {
           el.style.fontSize = zoom * 2 + 8 + 'px';
         }
       });
-      
-      // 신고 마커들의 위치 재확인 (확대/축소 시 정확한 위치 유지)
-      markerRefs.current.forEach(marker => {
-        const el = marker.getElement();
-        if (el) {
-          // 마커 요소의 transform 스타일이 올바르게 적용되었는지 확인
-          const transform = el.style.transform;
-          if (!transform || transform === 'none') {
-            // transform이 없으면 마커 위치 재설정
-            const lngLat = marker.getLngLat();
-            marker.setLngLat(lngLat);
-          }
-        }
-      });
     };
     map.on('zoom', handleZoom);
-    map.on('zoomend', handleZoom);
     return () => {
       map.off('zoom', handleZoom);
-      map.off('zoomend', handleZoom);
     };
   }, []);
 
