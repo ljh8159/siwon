@@ -28,7 +28,7 @@ export default function Home({ reports = [], stats = { blocked_count: 0, dispatc
         <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', margin: "24px 0 0 0" }}>
           <h2 style={{ fontSize: "2rem", fontWeight: 700, lineHeight: 1.2, margin: 0 }}>도로뚫이1단에<br />신고하세요</h2>
           
-          {/* 범례 */}
+          {/* 범1례 */}
           <div style={{
             background: 'white',
             padding: '12px',
