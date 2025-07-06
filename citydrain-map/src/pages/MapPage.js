@@ -269,7 +269,7 @@ const MapPage = () => {
 
     const map = new maplibregl.Map({
       container: 'map',
-      style: `https://api.maptiler.com/maps/basic-v2/style.json?key=${config.MAPTILER_KEY}`,
+      style: 'https://basemaps.cartocdn.com/gl/positron-gl-style/style.json',  // 무료로 사용 가능한 Carto 스타일
       center: [127.0, 37.5],  // 서울 중심 좌표
       zoom: 10,
       maxBounds: [
