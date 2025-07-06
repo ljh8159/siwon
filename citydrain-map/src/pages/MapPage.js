@@ -155,7 +155,12 @@ const MapPage = () => {
               popup.addTo(map);
             });
             
-            const marker = new maplibregl.Marker({ element: el, anchor: 'center' })
+            const marker = new maplibregl.Marker({ 
+              element: el, 
+              anchor: 'bottom',
+              pitchAlignment: 'map',
+              rotationAlignment: 'map'
+            })
               .setLngLat([lng, lat])
               .addTo(map);
             
@@ -200,7 +205,12 @@ const MapPage = () => {
           el.style.padding = '0';
           el.style.margin = '0';
           el.style.display = 'inline-block';
-          const marker = new maplibregl.Marker({ element: el })
+          const marker = new maplibregl.Marker({ 
+            element: el,
+            anchor: 'bottom',
+            pitchAlignment: 'map',
+            rotationAlignment: 'map'
+          })
             .setLngLat([box.center_lon, box.center_lat])
             .addTo(map);
           toolboxMarkerRefs.current.push(marker);
@@ -274,7 +284,7 @@ const MapPage = () => {
     // eslint-disable-next-line
   }, []);
 
-  // zoom 이벤트에 따라 toolbox 마커 크기/표시 동적 제어
+  // zoom 이벤트에 따라 toolbox 마커 크기/표시 동적 제어 및 마커 위치 재확인
   useEffect(() => {
     const map = mapRef.current;
     if (!map) return;
@@ -289,10 +299,26 @@ const MapPage = () => {
           el.style.fontSize = zoom * 2 + 8 + 'px';
         }
       });
+      
+      // 신고 마커들의 위치 재확인 (확대/축소 시 정확한 위치 유지)
+      markerRefs.current.forEach(marker => {
+        const el = marker.getElement();
+        if (el) {
+          // 마커 요소의 transform 스타일이 올바르게 적용되었는지 확인
+          const transform = el.style.transform;
+          if (!transform || transform === 'none') {
+            // transform이 없으면 마커 위치 재설정
+            const lngLat = marker.getLngLat();
+            marker.setLngLat(lngLat);
+          }
+        }
+      });
     };
     map.on('zoom', handleZoom);
+    map.on('zoomend', handleZoom);
     return () => {
       map.off('zoom', handleZoom);
+      map.off('zoomend', handleZoom);
     };
   }, []);
 

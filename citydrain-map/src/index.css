@@ -18,6 +18,7 @@ code {
   top: 0;
   left: 0;
   will-change: transform;
+  transform-origin: center bottom;
 }
 
 .maplibregl-marker svg {
@@ -28,8 +29,9 @@ code {
   position: absolute;
   top: 50%;
   left: 50%;
-  transform: translate(-50%, -50%);
+  transform: translate(-50%, -100%);
   pointer-events: auto;
+  z-index: 1;
 }
 
 /* 지도 컨테이너 스타일 */

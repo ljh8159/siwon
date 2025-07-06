@@ -1,6 +1,7 @@
 // MapComponent.js
 import React, { useEffect, useRef, useState } from 'react';
 import maplibregl from 'maplibre-gl';
+import 'maplibre-gl/dist/maplibre-gl.css';
 
 const API_URL = process.env.REACT_APP_API_URL || 'https://backendflask-production-f4c6.up.railway.app';
 
@@ -26,6 +27,20 @@ const MapComponent = () => {
       loadReports();
     });
 
+    // 지도 확대/축소 시 마커 위치 재확인
+    map.on('zoomend', () => {
+      markerRefs.current.forEach(marker => {
+        const el = marker.getElement();
+        if (el) {
+          const transform = el.style.transform;
+          if (!transform || transform === 'none') {
+            const lngLat = marker.getLngLat();
+            marker.setLngLat(lngLat);
+          }
+        }
+      });
+    });
+
     // 지도 클릭 시 마커 추가
     map.on('click', (e) => {
       const { lng, lat } = e.lngLat;
@@ -48,7 +63,7 @@ const MapComponent = () => {
       el.title = '신고 위치';
       const marker = new maplibregl.Marker({ 
         element: el, 
-        anchor: 'center',
+        anchor: 'bottom',
         pitchAlignment: 'map',
         rotationAlignment: 'map'
       })
@@ -102,7 +117,7 @@ const MapComponent = () => {
             
             const marker = new maplibregl.Marker({ 
               element: el, 
-              anchor: 'center',
+              anchor: 'bottom',
               pitchAlignment: 'map',
               rotationAlignment: 'map'
             })
