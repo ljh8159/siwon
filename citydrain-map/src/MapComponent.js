@@ -21,33 +21,10 @@ const MapComponent = () => {
     });
     mapRef.current = map;
 
-    // DB 마커 불러오기
-    fetch(`${API_URL}/api/reports`)
-      .then(res => res.json())
-      .then(data => {
-        markerRefs.current.forEach(marker => marker.remove());
-        markerRefs.current = [];
-        data.forEach(report => {
-          if (report.ai_stage === 3 && report.lat && report.lng) {
-            const lng = Number(report.lng);
-            const lat = Number(report.lat);
-            const el = document.createElement('div');
-            el.className = 'report-marker';
-            el.style.background = '#ff4444';
-            el.style.width = '16px';
-            el.style.height = '16px';
-            el.style.borderRadius = '50%';
-            el.style.border = '3px solid white';
-            el.style.boxShadow = '0 2px 8px rgba(0,0,0,0.3)';
-            el.style.cursor = 'pointer';
-            el.title = report.location || '';
-            const marker = new maplibregl.Marker({ element: el, anchor: 'center' })
-              .setLngLat([lng, lat])
-              .addTo(map);
-            markerRefs.current.push(marker);
-          }
-        });
-      });
+    // 지도 로드 완료 후 마커 추가
+    map.on('load', () => {
+      loadReports();
+    });
 
     // 지도 클릭 시 마커 추가
     map.on('click', (e) => {
@@ -59,15 +36,22 @@ const MapComponent = () => {
       // 새 마커 생성
       const el = document.createElement('div');
       el.className = 'report-marker';
-      el.style.background = '#4b53e5';
-      el.style.width = '20px';
-      el.style.height = '20px';
-      el.style.borderRadius = '50%';
-      el.style.border = '3px solid white';
-      el.style.boxShadow = '0 2px 8px rgba(0,0,0,0.3)';
-      el.style.cursor = 'pointer';
+      el.style.cssText = `
+        background: #4b53e5;
+        width: 20px;
+        height: 20px;
+        border-radius: 50%;
+        border: 3px solid white;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+        cursor: pointer;
+      `;
       el.title = '신고 위치';
-      const marker = new maplibregl.Marker({ element: el, anchor: 'center' })
+      const marker = new maplibregl.Marker({ 
+        element: el, 
+        anchor: 'center',
+        pitchAlignment: 'map',
+        rotationAlignment: 'map'
+      })
         .setLngLat([lng, lat])
         .addTo(map);
       setClickedMarker(marker);
@@ -81,6 +65,58 @@ const MapComponent = () => {
       if (clickedMarker) clickedMarker.remove();
     };
   }, []);
+
+  // DB에서 reports 로드하는 함수
+  const loadReports = async () => {
+    try {
+      const response = await fetch(`${API_URL}/api/reports`);
+      const data = await response.json();
+      
+      // 기존 마커들 제거
+      markerRefs.current.forEach(marker => marker.remove());
+      markerRefs.current = [];
+      
+      data.forEach(report => {
+        if (report.ai_stage === 3 && report.lat && report.lng) {
+          // 좌표를 숫자로 변환하고 유효성 검사
+          const lng = parseFloat(report.lng);
+          const lat = parseFloat(report.lat);
+          
+          // 유효한 좌표인지 확인
+          if (!isNaN(lng) && !isNaN(lat) && 
+              lng >= -180 && lng <= 180 && 
+              lat >= -90 && lat <= 90) {
+            
+            const el = document.createElement('div');
+            el.className = 'report-marker';
+            el.style.cssText = `
+              background: #ff4444;
+              width: 16px;
+              height: 16px;
+              border-radius: 50%;
+              border: 3px solid white;
+              box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+              cursor: pointer;
+            `;
+            el.title = report.location || '';
+            
+            const marker = new maplibregl.Marker({ 
+              element: el, 
+              anchor: 'center',
+              pitchAlignment: 'map',
+              rotationAlignment: 'map'
+            })
+              .setLngLat([lng, lat])
+              .addTo(mapRef.current);
+              
+            markerRefs.current.push(marker);
+          }
+        }
+      });
+    } catch (error) {
+      console.error('Failed to load reports:', error);
+    }
+  };
 
   return (
     <div>

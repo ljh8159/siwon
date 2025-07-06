@@ -664,9 +664,17 @@ def api_reports():
             
             print(f"Processing row: {row_dict}")
             
+            # 좌표를 숫자로 변환
+            try:
+                lat = float(row_dict["lat"]) if row_dict["lat"] else None
+                lng = float(row_dict["lng"]) if row_dict["lng"] else None
+            except (ValueError, TypeError):
+                lat = None
+                lng = None
+            
             reports.append({
-                "lat": row_dict["lat"],
-                "lng": row_dict["lng"],
+                "lat": lat,
+                "lng": lng,
                 "location": row_dict["location"],
                 "timestamp": row_dict["timestamp"],
                 "ai_stage": row_dict["ai_stage"]
