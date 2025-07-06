@@ -398,7 +398,7 @@ def all_reports():
             cur = db.cursor()
         
         placeholder = get_placeholder()
-        query = f"SELECT type, location, timestamp FROM reports WHERE type='신고' AND ai_stage=3 ORDER BY timestamp DESC LIMIT {placeholder}"
+        query = f"SELECT type, location, timestamp, ai_stage FROM reports WHERE type='신고' ORDER BY timestamp DESC LIMIT {placeholder}"
         cur.execute(query, (limit,))
         
         reports = []
@@ -436,7 +436,8 @@ def all_reports():
                 "type": row_dict["type"],
                 "location": row_dict["location"],
                 "timestamp": row_dict["timestamp"],
-                "time": time_str
+                "time": time_str,
+                "ai_stage": row_dict["ai_stage"]
             })
         
         cur.close()
@@ -648,8 +649,8 @@ def api_reports():
         else:
             cur = db.cursor()
         
-        print("Executing query: SELECT lat, lng, location, timestamp FROM reports WHERE type='신고' AND ai_stage=3")
-        cur.execute("SELECT lat, lng, location, timestamp FROM reports WHERE type='신고' AND ai_stage=3")
+        print("Executing query: SELECT lat, lng, location, timestamp, ai_stage FROM reports WHERE type='신고'")
+        cur.execute("SELECT lat, lng, location, timestamp, ai_stage FROM reports WHERE type='신고'")
         
         reports = []
         rows = cur.fetchall()
@@ -667,7 +668,8 @@ def api_reports():
                 "lat": row_dict["lat"],
                 "lng": row_dict["lng"],
                 "location": row_dict["location"],
-                "timestamp": row_dict["timestamp"]
+                "timestamp": row_dict["timestamp"],
+                "ai_stage": row_dict["ai_stage"]
             })
         
         cur.close()

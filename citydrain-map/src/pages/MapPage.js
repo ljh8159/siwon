@@ -65,13 +65,44 @@ const MapPage = () => {
           const lng = parseFloat(report.lng);
           const lat = parseFloat(report.lat);
           
-          console.log(`마커 ${index + 1}: lat=${lat}, lng=${lng}, location=${report.location}`);
+          console.log(`마커 ${index + 1}: lat=${lat}, lng=${lng}, location=${report.location}, stage=${report.ai_stage}`);
           
           if (!isNaN(lng) && !isNaN(lat)) {
+            // 마커 색상을 단계에 따라 다르게 설정
+            let markerColor = '#ff4444'; // 기본 빨간색
+            let markerTitle = `신고 위치: ${report.location || '위치 정보 없음'}`;
+            
+            if (report.ai_stage) {
+              switch (report.ai_stage) {
+                case 1:
+                  markerColor = '#4CAF50'; // 초록색 - 출동 완료
+                  markerTitle = `출동 완료: ${report.location || '위치 정보 없음'}`;
+                  break;
+                case 2:
+                  markerColor = '#FF9800'; // 주황색 - 검토 중
+                  markerTitle = `검토 중: ${report.location || '위치 정보 없음'}`;
+                  break;
+                case 3:
+                  markerColor = '#ff4444'; // 빨간색 - 막힘 확인
+                  markerTitle = `막힘 확인: ${report.location || '위치 정보 없음'}`;
+                  break;
+                case 4:
+                  markerColor = '#9C27B0'; // 보라색 - 정상
+                  markerTitle = `정상: ${report.location || '위치 정보 없음'}`;
+                  break;
+                case 5:
+                  markerColor = '#607D8B'; // 회색 - 취소
+                  markerTitle = `취소됨: ${report.location || '위치 정보 없음'}`;
+                  break;
+                default:
+                  markerColor = '#ff4444';
+              }
+            }
+            
             // 마커 요소 생성
             const el = document.createElement('div');
             el.className = 'report-marker';
-            el.style.background = '#ff4444';
+            el.style.background = markerColor;
             el.style.width = '16px';
             el.style.height = '16px';
             el.style.borderRadius = '50%';
@@ -79,7 +110,7 @@ const MapPage = () => {
             el.style.boxShadow = '0 2px 8px rgba(0,0,0,0.3)';
             el.style.cursor = 'pointer';
             el.style.position = 'relative';
-            el.title = `신고 위치: ${report.location || '위치 정보 없음'}`;
+            el.title = markerTitle;
             
             // 마커 클릭 시 팝업 표시
             el.addEventListener('click', () => {
@@ -87,6 +118,19 @@ const MapPage = () => {
               const existingPopup = document.querySelector('.maplibre-popup');
               if (existingPopup) {
                 existingPopup.remove();
+              }
+              
+              // 단계별 상태 텍스트
+              let statusText = '신고';
+              if (report.ai_stage) {
+                switch (report.ai_stage) {
+                  case 1: statusText = '출동 완료'; break;
+                  case 2: statusText = '검토 중'; break;
+                  case 3: statusText = '막힘 확인'; break;
+                  case 4: statusText = '정상'; break;
+                  case 5: statusText = '취소됨'; break;
+                  default: statusText = '신고';
+                }
               }
               
               // 새 팝업 생성
@@ -98,10 +142,11 @@ const MapPage = () => {
               .setLngLat([lng, lat])
               .setHTML(`
                 <div style="padding: 10px;">
-                  <h4 style="margin: 0 0 8px 0; color: #333;">🚨 신고 정보</h4>
+                  <h4 style="margin: 0 0 8px 0; color: #333;">🚨 ${statusText}</h4>
                   <p style="margin: 5px 0; font-size: 14px;"><strong>위치:</strong> ${report.location || '위치 정보 없음'}</p>
                   <p style="margin: 5px 0; font-size: 14px;"><strong>신고 시간:</strong> ${new Date(report.timestamp).toLocaleString('ko-KR')}</p>
                   <p style="margin: 5px 0; font-size: 12px; color: #666;">좌표: ${lat.toFixed(6)}, ${lng.toFixed(6)}</p>
+                  ${report.ai_stage ? `<p style="margin: 5px 0; font-size: 12px; color: #666;">단계: ${report.ai_stage}</p>` : ''}
                 </div>
               `);
               
@@ -113,7 +158,7 @@ const MapPage = () => {
               .addTo(map);
             
             markerRefs.current.push(marker);
-            console.log(`마커 ${index + 1} 추가됨`);
+            console.log(`마커 ${index + 1} 추가됨 (색상: ${markerColor})`);
           } else {
             console.warn(`마커 ${index + 1}: 유효하지 않은 좌표 - lat=${lat}, lng=${lng}`);
           }
@@ -290,38 +335,7 @@ const MapPage = () => {
         <div id="map" style={{ width: '100%', height: '100%' }}></div>
       </div>
       
-      {/* 범례 추가 */}
-      <div style={{
-        position: 'absolute',
-        bottom: '20px',
-        right: '20px',
-        background: 'white',
-        padding: '15px',
-        borderRadius: '8px',
-        boxShadow: '0 2px 10px rgba(0,0,0,0.1)',
-        fontSize: '14px',
-        zIndex: 1000
-      }}>
-        <div style={{ marginBottom: '10px', fontWeight: 'bold' }}>범례</div>
-        <div style={{ display: 'flex', alignItems: 'center', marginBottom: '5px' }}>
-          <div style={{
-            width: '12px',
-            height: '12px',
-            borderRadius: '50%',
-            background: '#ff4444',
-            border: '2px solid white',
-            marginRight: '8px'
-          }}></div>
-          <span>신고 위치</span>
-        </div>
-        <div style={{ display: 'flex', alignItems: 'center', marginBottom: '5px' }}>
-          <span style={{ marginRight: '8px' }}>🧹</span>
-          <span>청소도구함</span>
-        </div>
-        <div style={{ fontSize: '12px', color: '#666', marginTop: '8px' }}>
-          마커를 클릭하면 상세 정보를 확인할 수 있습니다.
-        </div>
-      </div>
+      
     </div>
   );
 };
