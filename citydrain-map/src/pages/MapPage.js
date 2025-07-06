@@ -4,6 +4,7 @@ import proj4 from "proj4";
 import maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import config from '../config';
+import Big from 'big.js';
 
 const API_URL = config.API_URL;
 
@@ -62,9 +63,9 @@ const MapPage = () => {
       
       if (data && Array.isArray(data)) {
         data.forEach((report, index) => {
-          // 마커 위치 지정에는 parseFloat 사용(지도 API 요구)
-          const lng = parseFloat(report.lng);
-          const lat = parseFloat(report.lat);
+          // Big.js로 고정밀 변환 후 Number로 변환 (JS Number 한계까지 최대한 정확)
+          const lng = Number(Big(report.lng).toString());
+          const lat = Number(Big(report.lat).toString());
           
           console.log(`마커 ${index + 1}: lat=${lat}, lng=${lng}, location=${report.location}, stage=${report.ai_stage}`);
           
