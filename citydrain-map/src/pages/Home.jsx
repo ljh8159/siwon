@@ -28,7 +28,36 @@ export default function Home({ reports = [], stats = { blocked_count: 0, dispatc
         <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', margin: "24px 0 0 0" }}>
           <h2 style={{ fontSize: "2rem", fontWeight: 700, lineHeight: 1.2, margin: 0 }}>도로뚫이1단에<br />신고하세요</h2>
           
-          {/* 범1례 삭제됨 */}
+          {/* 범2례 */}
+          <div style={{
+            background: 'white',
+            padding: '12px',
+            borderRadius: '8px',
+            boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
+            fontSize: '12px',
+            minWidth: '120px',
+            marginLeft: '10px'
+          }}>
+            <div style={{ marginBottom: '8px', fontWeight: 'bold', fontSize: '13px' }}>범1례</div>
+            <div style={{ display: 'flex', alignItems: 'center', marginBottom: '4px' }}>
+              <div style={{
+                width: '10px',
+                height: '10px',
+                borderRadius: '50%',
+                background: '#ff4444',
+                border: '2px solid white',
+                marginRight: '6px'
+              }}></div>
+              <span>신고 위치</span>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', marginBottom: '4px' }}>
+              <span style={{ marginRight: '6px', fontSize: '10px' }}>🧹</span>
+              <span>청소도구함</span>
+            </div>
+            <div style={{ fontSize: '10px', color: '#666', marginTop: '6px' }}>
+              마커 클릭 시 상세정보
+            </div>
+          </div>
         </div>
         {/* 지도는 별도 MapPage.js로 구현 */}
         <iframe src="/map" width="100%" height="315" style={{ border: "none", borderRadius: 16, display: 'block', verticalAlign: 'bottom' }} title="map" />
