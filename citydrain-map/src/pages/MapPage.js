@@ -62,6 +62,7 @@ const MapPage = () => {
       
       if (data && Array.isArray(data)) {
         data.forEach((report, index) => {
+          // 마커 위치 지정에는 parseFloat 사용(지도 API 요구)
           const lng = parseFloat(report.lng);
           const lat = parseFloat(report.lat);
           
@@ -145,7 +146,7 @@ const MapPage = () => {
                   <h4 style="margin: 0 0 8px 0; color: #333;">🚨 ${statusText}</h4>
                   <p style="margin: 5px 0; font-size: 14px;"><strong>위치:</strong> ${report.location || '위치 정보 없음'}</p>
                   <p style="margin: 5px 0; font-size: 14px;"><strong>신고 시간:</strong> ${new Date(report.timestamp).toLocaleString('ko-KR')}</p>
-                  <p style="margin: 5px 0; font-size: 12px; color: #666;">좌표: ${lat.toFixed(6)}, ${lng.toFixed(6)}</p>
+                  <p style="margin: 5px 0; font-size: 12px; color: #666;">좌표: ${report.lat}, ${report.lng}</p>
                   ${report.ai_stage ? `<p style="margin: 5px 0; font-size: 12px; color: #666;">단계: ${report.ai_stage}</p>` : ''}
                 </div>
               `);
