@@ -80,4 +80,7 @@ coverage/
 
 # Temporary files
 *.tmp
-*.temp 
+*.temp
+
+# Additional directories
+hongc/

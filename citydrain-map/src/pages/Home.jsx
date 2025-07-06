@@ -6,6 +6,7 @@ import iconUser from "../assets/user.png";
 
 export default function Home({ reports = [], stats = { blocked_count: 0, dispatched_count: 0 } }) {
   const history = useHistory();
+  const [showLegend, setShowLegend] = React.useState(false);
 
   const handleMoreReports = () => {
     history.push("/home/history");
@@ -26,8 +27,54 @@ export default function Home({ reports = [], stats = { blocked_count: 0, dispatc
       }}>
         <h2 style={{ margin: "24px 0 0 0", fontSize: "2rem", fontWeight: 700, lineHeight: 1.2 }}>도로뚫이1단에<br />신고하세요</h2>
         {/* 지도는 별도 MapPage.js로 구현 */}
-        <iframe src="/map" width="100%" height="340" style={{ border: "none", borderRadius: 16 }} title="map" />
-        <div style={{ fontSize: 15, color: "#888", margin: "8px 0 20px 5%" }}>실시간 하수구 막힘 상황을 보여줍니다.</div>
+        <iframe src="/map" width="100%" height="315" style={{ border: "none", borderRadius: 16, display: 'block', verticalAlign: 'bottom' }} title="map" />
+        {/* 안내문구 + 더보기 버튼 + 범례 토글 (지도 아래로만 남김) */}
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          fontSize: 15,
+          color: '#888',
+          margin: '0 0 20px 5%'
+        }}>
+          <span>실시간 하수구 막힘 상황을 보여줍니다.</span>
+          <span
+            style={{ cursor: 'pointer', fontSize: 15, color: '#888', marginLeft: 12, marginRight: '5%' }}
+            onClick={() => setShowLegend(v => !v)}
+          >더보기</span>
+        </div>
+        {showLegend && (
+          <div style={{ margin: '10px 0 10px 5%', fontSize: '0.95em' }}>
+            <div style={{ fontWeight: 'bold', marginBottom: 2 }}>침수등급:</div>
+            <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'nowrap', overflowX: 'auto', whiteSpace: 'nowrap' }}>
+              <span style={{ display: 'flex', alignItems: 'center' }}>
+                <span style={{
+                  display: 'inline-block', width: 18, height: 18, background: '#ffb3b3', marginRight: 3, border: '1px solid #333'
+                }}></span> 1등급
+              </span>
+              <span style={{ display: 'flex', alignItems: 'center' }}>
+                <span style={{
+                  display: 'inline-block', width: 18, height: 18, background: '#ffd699', marginRight: 3, border: '1px solid #333'
+                }}></span> 2등급
+              </span>
+              <span style={{ display: 'flex', alignItems: 'center' }}>
+                <span style={{
+                  display: 'inline-block', width: 18, height: 18, background: '#ffffb3', marginRight: 3, border: '1px solid #333'
+                }}></span> 3등급
+              </span>
+              <span style={{ display: 'flex', alignItems: 'center' }}>
+                <span style={{
+                  display: 'inline-block', width: 18, height: 18, background: '#b3ecff', marginRight: 3, border: '1px solid #333'
+                }}></span> 4등급
+              </span>
+              <span style={{ display: 'flex', alignItems: 'center' }}>
+                <span style={{
+                  display: 'inline-block', width: 18, height: 18, background: '#b3b3ff', marginRight: 3, border: '1px solid #333'
+                }}></span> 5등급
+              </span>
+            </div>
+          </div>
+        )}
         <div style={{ padding: "0 5%" }}>
           <b style={{ fontSize: 18 }}>신고 목록</b>
           <span
