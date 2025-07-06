@@ -2,107 +2,85 @@
 import React, { useEffect, useRef, useState } from 'react';
 import maplibregl from 'maplibre-gl';
 
-const KAKAO_MAP_KEY = "YOUR_KAKAO_MAP_KEY"; // 실제 키로 교체
 const API_URL = process.env.REACT_APP_API_URL || 'https://backendflask-production-f4c6.up.railway.app';
-
-function loadKakaoMapScript(callback) {
-  if (window.kakao && window.kakao.maps) {
-    callback();
-    return;
-  }
-  const script = document.createElement("script");
-  script.src = `//dapi.kakao.com/v2/maps/sdk.js?appkey=${KAKAO_MAP_KEY}&autoload=false&libraries=services`;
-  script.onload = () => {
-    window.kakao.maps.load(callback);
-  };
-  document.head.appendChild(script);
-}
 
 const MapComponent = () => {
   const mapRef = useRef(null);
+  const markerRefs = useRef([]);
   const [address, setAddress] = useState('');
   const [image, setImage] = useState(null);
-  const markersRef = useRef([]);
+  const [clickedMarker, setClickedMarker] = useState(null);
 
+  // 지도 및 DB 마커 로딩
   useEffect(() => {
-    loadKakaoMapScript(() => {
-      const container = mapRef.current;
-      const options = {
-        center: new window.kakao.maps.LatLng(36.501681024, 127.26442098),
-        level: 7,
-      };
-      const map = new window.kakao.maps.Map(container, options);
+    const map = new maplibregl.Map({
+      container: 'map',
+      style: 'https://basemaps.cartocdn.com/gl/positron-gl-style/style.json',
+      center: [127.26442098, 36.501681024],
+      zoom: 13
+    });
+    mapRef.current = map;
 
-      // 마커 불러오기
-      fetch(`${API_URL}/api/reports`)
-        .then((res) => res.json())
-        .then((data) => {
-          // 기존 마커 삭제
-          markersRef.current.forEach((marker) => marker.setMap(null));
-          markersRef.current = [];
-          data.forEach((report) => {
-            if (report.ai_stage === 3 && report.lat && report.lng) {
-              const markerPosition = new window.kakao.maps.LatLng(report.lat, report.lng);
-              const marker = new window.kakao.maps.Marker({
-                position: markerPosition,
-                map: map,
-              });
-              markersRef.current.push(marker);
-            }
-          });
-        });
-
-      // 지도 클릭 시 신고
-      window.kakao.maps.event.addListener(map, 'click', function (mouseEvent) {
-        const latlng = mouseEvent.latLng;
-        // 주소 변환
-        const geocoder = new window.kakao.maps.services.Geocoder();
-        geocoder.coord2Address(latlng.getLng(), latlng.getLat(), function (result, status) {
-          if (status === window.kakao.maps.services.Status.OK) {
-            const addr = result[0].address.address_name;
-            setAddress(addr);
-
-            // 사진 업로드가 선택되지 않은 경우 안내
-            if (!image) {
-              alert("사진을 먼저 업로드 해주세요!");
-              return;
-            }
-
-            // 신고 전송 (FormData 사용)
-            const timestamp = new Date().toISOString();
-            const formData = new FormData();
-            formData.append('lat', latlng.getLat());
-            formData.append('lng', latlng.getLng());
-            formData.append('address', addr);
-            formData.append('timestamp', timestamp);
-            formData.append('image', image);
-
-            fetch(`${API_URL}/report`, {
-              method: 'POST',
-              body: formData
-            })
-              .then(res => res.json())
-              .then(data => {
-                alert(data.message);
-                // 3단계일 때만 마커 추가
-                if (data.status === "accept") {
-                  const marker = new window.kakao.maps.Marker({
-                    position: latlng,
-                    map: map
-                  });
-                  markersRef.current.push(marker);
-                }
-                // 4단계면 공공기관 사이트로 이동
-                if (data.status === "redirect") {
-                  window.open("https://www.safekorea.go.kr/", "_blank");
-                }
-              });
+    // DB 마커 불러오기
+    fetch(`${API_URL}/api/reports`)
+      .then(res => res.json())
+      .then(data => {
+        markerRefs.current.forEach(marker => marker.remove());
+        markerRefs.current = [];
+        data.forEach(report => {
+          if (report.ai_stage === 3 && report.lat && report.lng) {
+            const lng = Number(report.lng);
+            const lat = Number(report.lat);
+            const el = document.createElement('div');
+            el.className = 'report-marker';
+            el.style.background = '#ff4444';
+            el.style.width = '16px';
+            el.style.height = '16px';
+            el.style.borderRadius = '50%';
+            el.style.border = '3px solid white';
+            el.style.boxShadow = '0 2px 8px rgba(0,0,0,0.3)';
+            el.style.cursor = 'pointer';
+            el.title = report.location || '';
+            const marker = new maplibregl.Marker({ element: el, anchor: 'center' })
+              .setLngLat([lng, lat])
+              .addTo(map);
+            markerRefs.current.push(marker);
           }
         });
       });
+
+    // 지도 클릭 시 마커 추가
+    map.on('click', (e) => {
+      const { lng, lat } = e.lngLat;
+      // 기존 클릭 마커 제거
+      if (clickedMarker) {
+        clickedMarker.remove();
+      }
+      // 새 마커 생성
+      const el = document.createElement('div');
+      el.className = 'report-marker';
+      el.style.background = '#4b53e5';
+      el.style.width = '20px';
+      el.style.height = '20px';
+      el.style.borderRadius = '50%';
+      el.style.border = '3px solid white';
+      el.style.boxShadow = '0 2px 8px rgba(0,0,0,0.3)';
+      el.style.cursor = 'pointer';
+      el.title = '신고 위치';
+      const marker = new maplibregl.Marker({ element: el, anchor: 'center' })
+        .setLngLat([lng, lat])
+        .addTo(map);
+      setClickedMarker(marker);
+      // 주소 변환(예시: reverse geocoding API 필요)
+      setAddress(`위도: ${lat}, 경도: ${lng}`);
     });
-    // eslint-disable-next-line
-  }, [image]);
+
+    return () => {
+      if (map) map.remove();
+      markerRefs.current.forEach(marker => marker.remove());
+      if (clickedMarker) clickedMarker.remove();
+    };
+  }, []);
 
   return (
     <div>
