@@ -186,9 +186,8 @@ def get_db():
             return db
         except Exception as e:
             print(f"Database connection error: {str(e)}")
-            # 연결 실패 시 500 에러 발생
-            from flask import abort
-            abort(500, description=f"Database connection failed: {str(e)}")
+            # 연결 실패 시 None 반환하여 에러 처리
+            return None
     return db
 
 def get_placeholder():
@@ -621,33 +620,62 @@ def login():
     token = secrets.token_hex(16)
     return jsonify({'result': 'success', 'token': token})
 
-@app.route('/api/reports', methods=['GET'])
+@app.route('/api/reports', methods=['GET', 'OPTIONS'])
 def api_reports():
-    db = get_db()
+    print(f"API reports called with method: {request.method}")
+    print(f"Origin: {request.headers.get('Origin')}")
     
-    if is_postgres():
-        cur = db.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
-    else:
-        cur = db.cursor()
+    if request.method == 'OPTIONS':
+        response = app.make_default_options_response()
+        origin = request.headers.get('Origin')
+        if origin in ['https://front-production-9f96.up.railway.app', 'http://localhost:3000']:
+            response.headers['Access-Control-Allow-Origin'] = origin
+            response.headers['Access-Control-Allow-Methods'] = 'GET,OPTIONS'
+            response.headers['Access-Control-Allow-Headers'] = 'Content-Type'
+        return response
     
-    cur.execute("SELECT lat, lng, location, timestamp FROM reports WHERE type='신고' AND ai_stage=3")
-    
-    reports = []
-    for row in cur.fetchall():
-        if is_postgres():
-            row_dict = dict(row)
-        else:
-            row_dict = dict(row)
+    try:
+        print("Getting database connection...")
+        db = get_db()
+        if db is None:
+            print("Database connection failed")
+            return jsonify({'error': 'Database connection failed'}), 500
         
-        reports.append({
-            "lat": row_dict["lat"],
-            "lng": row_dict["lng"],
-            "location": row_dict["location"],
-            "timestamp": row_dict["timestamp"]
-        })
-    
-    cur.close()
-    return jsonify(reports)
+        print("Database connection successful")
+        
+        if is_postgres():
+            cur = db.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+        else:
+            cur = db.cursor()
+        
+        print("Executing query: SELECT lat, lng, location, timestamp FROM reports WHERE type='신고' AND ai_stage=3")
+        cur.execute("SELECT lat, lng, location, timestamp FROM reports WHERE type='신고' AND ai_stage=3")
+        
+        reports = []
+        rows = cur.fetchall()
+        print(f"Found {len(rows)} reports")
+        
+        for row in rows:
+            if is_postgres():
+                row_dict = dict(row)
+            else:
+                row_dict = dict(row)
+            
+            print(f"Processing row: {row_dict}")
+            
+            reports.append({
+                "lat": row_dict["lat"],
+                "lng": row_dict["lng"],
+                "location": row_dict["location"],
+                "timestamp": row_dict["timestamp"]
+            })
+        
+        cur.close()
+        print(f"Returning {len(reports)} reports")
+        return jsonify(reports)
+    except Exception as e:
+        print(f"Error in api_reports: {str(e)}")
+        return handle_db_error(e)
 
 @app.route('/uploads/<filename>')
 def uploaded_file(filename):

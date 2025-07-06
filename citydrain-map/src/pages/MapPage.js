@@ -1,10 +1,11 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import styles from '../styles/MapPage.module.css';
 import proj4 from "proj4";
 import maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
+import config from '../config';
 
-const API_URL = process.env.REACT_APP_API_URL || 'https://backendflask-production-f4c6.up.railway.app';
+const API_URL = config.API_URL;
 
 function geoJsonCoordsToLngLatArray(coords) {
   const epsg3857 = "+proj=merc +a=6378137 +b=6378137 +lat_ts=0.0 +lon_0=0 +y_0=0 +lon_0=0 +k=1.0 +units=m +nadgrids=@null +no_defs";
@@ -19,6 +20,8 @@ const MapPage = () => {
   const mapRef = useRef(null);
   const markerRefs = useRef([]);
   const toolboxMarkerRefs = useRef([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
 
   const clearMarkers = () => {
     markerRefs.current.forEach(marker => marker.remove());
@@ -31,37 +34,102 @@ const MapPage = () => {
   };
 
   // DB 마커 표시
-  const loadMarkers = (map) => {
-    fetch(`${API_URL}/api/reports`)
-      .then(res => {
-        if (!res.ok) throw new Error('API 응답 오류');
-        return res.json();
-      })
-      .then(data => {
-        clearMarkers();
-        data.forEach(report => {
+  const loadMarkers = async (map) => {
+    setLoading(true);
+    setError(null);
+    
+    try {
+      console.log('API URL:', API_URL);
+      const response = await fetch(`${API_URL}/api/reports`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        mode: 'cors',
+      });
+
+      console.log('Response status:', response.status);
+      console.log('Response headers:', response.headers);
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const data = await response.json();
+      console.log('신고 데이터 로드됨:', data);
+      
+      clearMarkers();
+      
+      if (data && Array.isArray(data)) {
+        data.forEach((report, index) => {
           const lng = parseFloat(report.lng);
           const lat = parseFloat(report.lat);
+          
+          console.log(`마커 ${index + 1}: lat=${lat}, lng=${lng}, location=${report.location}`);
+          
           if (!isNaN(lng) && !isNaN(lat)) {
+            // 마커 요소 생성
             const el = document.createElement('div');
-            el.style.background = 'red';
-            el.style.width = '12px';
-            el.style.height = '12px';
+            el.className = 'report-marker';
+            el.style.background = '#ff4444';
+            el.style.width = '16px';
+            el.style.height = '16px';
             el.style.borderRadius = '50%';
-            el.style.border = '2px solid white';
-            el.style.boxShadow = '0 0 6px #333';
+            el.style.border = '3px solid white';
+            el.style.boxShadow = '0 2px 8px rgba(0,0,0,0.3)';
             el.style.cursor = 'pointer';
-            el.title = `위도: ${lat}, 경도: ${lng}`;
+            el.style.position = 'relative';
+            el.title = `신고 위치: ${report.location || '위치 정보 없음'}`;
+            
+            // 마커 클릭 시 팝업 표시
+            el.addEventListener('click', () => {
+              // 기존 팝업 제거
+              const existingPopup = document.querySelector('.maplibre-popup');
+              if (existingPopup) {
+                existingPopup.remove();
+              }
+              
+              // 새 팝업 생성
+              const popup = new maplibregl.Popup({
+                closeButton: true,
+                closeOnClick: false,
+                maxWidth: '300px'
+              })
+              .setLngLat([lng, lat])
+              .setHTML(`
+                <div style="padding: 10px;">
+                  <h4 style="margin: 0 0 8px 0; color: #333;">🚨 신고 정보</h4>
+                  <p style="margin: 5px 0; font-size: 14px;"><strong>위치:</strong> ${report.location || '위치 정보 없음'}</p>
+                  <p style="margin: 5px 0; font-size: 14px;"><strong>신고 시간:</strong> ${new Date(report.timestamp).toLocaleString('ko-KR')}</p>
+                  <p style="margin: 5px 0; font-size: 12px; color: #666;">좌표: ${lat.toFixed(6)}, ${lng.toFixed(6)}</p>
+                </div>
+              `);
+              
+              popup.addTo(map);
+            });
+            
             const marker = new maplibregl.Marker({ element: el })
               .setLngLat([lng, lat])
               .addTo(map);
+            
             markerRefs.current.push(marker);
+            console.log(`마커 ${index + 1} 추가됨`);
+          } else {
+            console.warn(`마커 ${index + 1}: 유효하지 않은 좌표 - lat=${lat}, lng=${lng}`);
           }
         });
-      })
-      .catch(err => {
-        console.error('마커 불러오기 실패:', err);
-      });
+      } else {
+        console.warn('데이터가 배열이 아닙니다:', data);
+      }
+      
+      console.log(`총 ${markerRefs.current.length}개의 신고 마커가 표시되었습니다.`);
+      
+    } catch (err) {
+      console.error('마커 불러오기 실패:', err);
+      setError(`신고 데이터를 불러오는데 실패했습니다: ${err.message}`);
+    } finally {
+      setLoading(false);
+    }
   };
 
   // toolbox 마커 표시
@@ -183,13 +251,77 @@ const MapPage = () => {
 
   return (
     <div className={styles.container}>
-      {/* '📍 도로뚫이단 - 하수구 지도', '사진업로드 부분', '현재 클릭한 주소' 삭제 */}
-      {/* 상단 범례 완전 삭제 */}
+      {/* 로딩 및 에러 상태 표시 */}
+      {loading && (
+        <div style={{
+          position: 'absolute',
+          top: '10px',
+          left: '50%',
+          transform: 'translateX(-50%)',
+          background: 'rgba(0,0,0,0.8)',
+          color: 'white',
+          padding: '8px 16px',
+          borderRadius: '20px',
+          fontSize: '14px',
+          zIndex: 1000
+        }}>
+          신고 데이터를 불러오는 중...
+        </div>
+      )}
+      
+      {error && (
+        <div style={{
+          position: 'absolute',
+          top: '10px',
+          left: '50%',
+          transform: 'translateX(-50%)',
+          background: 'rgba(255,0,0,0.8)',
+          color: 'white',
+          padding: '8px 16px',
+          borderRadius: '20px',
+          fontSize: '14px',
+          zIndex: 1000
+        }}>
+          {error}
+        </div>
+      )}
+      
       <div className={styles.mapArea}>
         <div id="map" style={{ width: '100%', height: '100%' }}></div>
       </div>
-      {/* 지도 아래 안내 */}
-      {/* 기존 안내문구 영역 전체 삭제 */}
+      
+      {/* 범례 추가 */}
+      <div style={{
+        position: 'absolute',
+        bottom: '20px',
+        right: '20px',
+        background: 'white',
+        padding: '15px',
+        borderRadius: '8px',
+        boxShadow: '0 2px 10px rgba(0,0,0,0.1)',
+        fontSize: '14px',
+        zIndex: 1000
+      }}>
+        <div style={{ marginBottom: '10px', fontWeight: 'bold' }}>범례</div>
+        <div style={{ display: 'flex', alignItems: 'center', marginBottom: '5px' }}>
+          <div style={{
+            width: '12px',
+            height: '12px',
+            borderRadius: '50%',
+            background: '#ff4444',
+            border: '2px solid white',
+            marginRight: '8px'
+          }}></div>
+          <span>신고 위치</span>
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', marginBottom: '5px' }}>
+          <span style={{ marginRight: '8px' }}>🧹</span>
+          <span>청소도구함</span>
+        </div>
+        <div style={{ fontSize: '12px', color: '#666', marginTop: '8px' }}>
+          마커를 클릭하면 상세 정보를 확인할 수 있습니다.
+        </div>
+      </div>
     </div>
   );
 };
