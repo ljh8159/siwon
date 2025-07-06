@@ -155,7 +155,7 @@ const MapPage = () => {
               popup.addTo(map);
             });
             
-            const marker = new maplibregl.Marker({ element: el })
+            const marker = new maplibregl.Marker({ element: el, anchor: 'center' })
               .setLngLat([lng, lat])
               .addTo(map);
             
