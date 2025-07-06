@@ -24,7 +24,7 @@ export default function Home({ reports = [], stats = { blocked_count: 0, dispatc
       <div className="container" style={{
         width: "100%", height: "100%", boxSizing: "border-box", paddingBottom: 80, overflowY: "auto", borderRadius: 32
       }}>
-        <h2 style={{ margin: "24px 0 0 0", fontSize: "2rem", fontWeight: 700, lineHeight: 1.2 }}>도로뚫이1단에<br />신고하세요</h2>
+        <h2 style={{ margin: "24px 0 0 0", fontSize: "2rem", fontWeight: 700, lineHeight: 1.2 }}>도로뚫이단에<br />신고하세요</h2>
         {/* 지도는 별도 MapPage.js로 구현 */}
         <iframe src="/map" width="100%" height="340" style={{ border: "none", borderRadius: 16 }} title="map" />
         <div style={{ fontSize: 15, color: "#888", margin: "8px 0 20px 5%" }}>실시간 하수구 막힘 상황을 보여줍니다.</div>
