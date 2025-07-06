@@ -38,7 +38,7 @@ export default function Home({ reports = [], stats = { blocked_count: 0, dispatc
             minWidth: '120px',
             marginLeft: '10px'
           }}>
-            <div style={{ marginBottom: '8px', fontWeight: 'bold', fontSize: '13px' }}>범례</div>
+            <div style={{ marginBottom: '8px', fontWeight: 'bold', fontSize: '13px' }}>범1례</div>
             <div style={{ display: 'flex', alignItems: 'center', marginBottom: '4px' }}>
               <div style={{
                 width: '10px',
