@@ -58,120 +58,132 @@ const MapPage = () => {
       const data = await response.json();
       console.log('신고 데이터 로드됨:', data);
       
+      // 기존 마커들 완전히 제거
       clearMarkers();
       
       if (data && Array.isArray(data)) {
-        data.forEach((report, index) => {
-          // 좌표를 숫자로 변환하고 유효성 검사
+        // 유효한 데이터만 필터링
+        const validReports = data.filter(report => {
+          const lng = parseFloat(report.lng);
+          const lat = parseFloat(report.lat);
+          return !isNaN(lng) && !isNaN(lat) && 
+                 lng >= 124 && lng <= 132 && 
+                 lat >= 33 && lat <= 39;
+        });
+        
+        console.log(`유효한 신고 데이터: ${validReports.length}개`);
+        
+        validReports.forEach((report, index) => {
+          // 좌표를 숫자로 변환
           const lng = parseFloat(report.lng);
           const lat = parseFloat(report.lat);
           
           console.log(`마커 ${index + 1}: lng=${lng}, lat=${lat}, location=${report.location}, stage=${report.ai_stage}`);
           
-          // 유효한 좌표인지 확인 (한국 지역 좌표 범위) - 모든 단계의 마커 표시
-          if (!isNaN(lng) && !isNaN(lat) && 
-              lng >= 124 && lng <= 132 && 
-              lat >= 33 && lat <= 39) {
-            // 마커 색상을 단계에 따라 다르게 설정
-            let markerColor = '#ff4444'; // 기본 빨간색
-            let markerTitle = `신고 위치: ${report.location || '위치 정보 없음'}`;
+          // 각 마커마다 고유한 ID 생성
+          const markerId = `marker-${report.id || index}`;
+          
+          // 마커 색상을 단계에 따라 다르게 설정
+          let markerColor = '#ff4444'; // 기본 빨간색
+          let markerTitle = `신고 위치: ${report.location || '위치 정보 없음'}`;
+          
+          if (report.ai_stage) {
+            switch (report.ai_stage) {
+              case 1:
+                markerColor = '#4CAF50'; // 초록색 - 출동 완료
+                markerTitle = `출동 완료: ${report.location || '위치 정보 없음'}`;
+                break;
+              case 2:
+                markerColor = '#FF9800'; // 주황색 - 검토 중
+                markerTitle = `검토 중: ${report.location || '위치 정보 없음'}`;
+                break;
+              case 3:
+                markerColor = '#ff4444'; // 빨간색 - 막힘 확인
+                markerTitle = `막힘 확인: ${report.location || '위치 정보 없음'}`;
+                break;
+              case 4:
+                markerColor = '#9C27B0'; // 보라색 - 정상
+                markerTitle = `정상: ${report.location || '위치 정보 없음'}`;
+                break;
+              case 5:
+                markerColor = '#607D8B'; // 회색 - 취소
+                markerTitle = `취소됨: ${report.location || '위치 정보 없음'}`;
+                break;
+              default:
+                markerColor = '#ff4444';
+            }
+          }
+          
+          // 마커 요소 생성 - 고유한 ID 부여
+          const el = document.createElement('div');
+          el.className = 'report-marker';
+          el.id = markerId;
+          el.style.background = markerColor;
+          el.style.width = '16px';
+          el.style.height = '16px';
+          el.style.borderRadius = '50%';
+          el.style.border = '3px solid white';
+          el.style.boxShadow = '0 2px 8px rgba(0,0,0,0.3)';
+          el.style.cursor = 'pointer';
+          el.style.position = 'relative';
+          el.title = markerTitle;
+          
+          // 마커 클릭 시 팝업 표시
+          el.addEventListener('click', () => {
+            // 기존 팝업 제거
+            const existingPopup = document.querySelector('.maplibregl-popup');
+            if (existingPopup) {
+              existingPopup.remove();
+            }
             
+            // 단계별 상태 텍스트
+            let statusText = '신고';
             if (report.ai_stage) {
               switch (report.ai_stage) {
-                case 1:
-                  markerColor = '#4CAF50'; // 초록색 - 출동 완료
-                  markerTitle = `출동 완료: ${report.location || '위치 정보 없음'}`;
-                  break;
-                case 2:
-                  markerColor = '#FF9800'; // 주황색 - 검토 중
-                  markerTitle = `검토 중: ${report.location || '위치 정보 없음'}`;
-                  break;
-                case 3:
-                  markerColor = '#ff4444'; // 빨간색 - 막힘 확인
-                  markerTitle = `막힘 확인: ${report.location || '위치 정보 없음'}`;
-                  break;
-                case 4:
-                  markerColor = '#9C27B0'; // 보라색 - 정상
-                  markerTitle = `정상: ${report.location || '위치 정보 없음'}`;
-                  break;
-                case 5:
-                  markerColor = '#607D8B'; // 회색 - 취소
-                  markerTitle = `취소됨: ${report.location || '위치 정보 없음'}`;
-                  break;
-                default:
-                  markerColor = '#ff4444';
+                case 1: statusText = '출동 완료'; break;
+                case 2: statusText = '검토 중'; break;
+                case 3: statusText = '막힘 확인'; break;
+                case 4: statusText = '정상'; break;
+                case 5: statusText = '취소됨'; break;
+                default: statusText = '신고';
               }
             }
             
-            // 마커 요소 생성
-            const el = document.createElement('div');
-            el.className = 'report-marker';
-            el.style.background = markerColor;
-            el.style.width = '16px';
-            el.style.height = '16px';
-            el.style.borderRadius = '50%';
-            el.style.border = '3px solid white';
-            el.style.boxShadow = '0 2px 8px rgba(0,0,0,0.3)';
-            el.style.cursor = 'pointer';
-            el.style.position = 'relative';
-            el.title = markerTitle;
-            
-            // 마커 클릭 시 팝업 표시
-            el.addEventListener('click', () => {
-              // 기존 팝업 제거
-              const existingPopup = document.querySelector('.maplibregl-popup');
-              if (existingPopup) {
-                existingPopup.remove();
-              }
-              
-              // 단계별 상태 텍스트
-              let statusText = '신고';
-              if (report.ai_stage) {
-                switch (report.ai_stage) {
-                  case 1: statusText = '출동 완료'; break;
-                  case 2: statusText = '검토 중'; break;
-                  case 3: statusText = '막힘 확인'; break;
-                  case 4: statusText = '정상'; break;
-                  case 5: statusText = '취소됨'; break;
-                  default: statusText = '신고';
-                }
-              }
-              
-              // 새 팝업 생성
-              const popup = new maplibregl.Popup({
-                closeButton: true,
-                closeOnClick: false,
-                maxWidth: '300px',
-                className: 'custom-popup'
-              })
-              .setLngLat([lng, lat])
-              .setHTML(`
-                <div style="padding: 10px;">
-                  <h4 style="margin: 0 0 8px 0; color: #333;">🚨 ${statusText}</h4>
-                  <p style="margin: 5px 0; font-size: 14px;"><strong>위치:</strong> ${report.location || '위치 정보 없음'}</p>
-                  <p style="margin: 5px 0; font-size: 14px;"><strong>신고 시간:</strong> ${new Date(report.timestamp).toLocaleString('ko-KR')}</p>
-                  <p style="margin: 5px 0; font-size: 12px; color: #666;">좌표: ${lng}, ${lat}</p>
-                  ${report.ai_stage ? `<p style="margin: 5px 0; font-size: 12px; color: #666;">단계: ${report.ai_stage}</p>` : ''}
-                </div>
-              `);
-              
-              popup.addTo(map);
-            });
-            
-            const marker = new maplibregl.Marker({ 
-              element: el, 
-              anchor: 'bottom',
-              pitchAlignment: 'map',
-              rotationAlignment: 'map'
+            // 새 팝업 생성
+            const popup = new maplibregl.Popup({
+              closeButton: true,
+              closeOnClick: false,
+              maxWidth: '300px',
+              className: 'custom-popup'
             })
-              .setLngLat([lng, lat])  // [경도, 위도] 순서로 정확히 설정
-              .addTo(map);
+            .setLngLat([lng, lat])
+            .setHTML(`
+              <div style="padding: 10px;">
+                <h4 style="margin: 0 0 8px 0; color: #333;">🚨 ${statusText}</h4>
+                <p style="margin: 5px 0; font-size: 14px;"><strong>위치:</strong> ${report.location || '위치 정보 없음'}</p>
+                <p style="margin: 5px 0; font-size: 14px;"><strong>신고 시간:</strong> ${new Date(report.timestamp).toLocaleString('ko-KR')}</p>
+                <p style="margin: 5px 0; font-size: 12px; color: #666;">좌표: ${lng}, ${lat}</p>
+                ${report.ai_stage ? `<p style="margin: 5px 0; font-size: 12px; color: #666;">단계: ${report.ai_stage}</p>` : ''}
+              </div>
+            `);
             
-            markerRefs.current.push(marker);
-            console.log(`마커 ${index + 1} 추가됨 (색상: ${markerColor})`);
-          } else {
-            console.warn(`마커 ${index + 1}: 유효하지 않은 좌표 - lng=${lng}, lat=${lat}`);
-          }
+            popup.addTo(map);
+          });
+          
+          // 마커 생성 및 지도에 추가
+          const marker = new maplibregl.Marker({ 
+            element: el, 
+            anchor: 'bottom',
+            pitchAlignment: 'map',
+            rotationAlignment: 'map'
+          });
+          
+          // 좌표 설정 및 지도에 추가
+          marker.setLngLat([lng, lat]).addTo(map);
+          
+          // 마커 참조 저장
+          markerRefs.current.push(marker);
+          console.log(`마커 ${index + 1} 추가됨 (ID: ${markerId}, 색상: ${markerColor}, 좌표: [${lng}, ${lat}])`);
         });
       } else {
         console.warn('데이터가 배열이 아닙니다:', data);

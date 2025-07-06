@@ -78,78 +78,90 @@ const MapComponent = () => {
       markerRefs.current.forEach(marker => marker.remove());
       markerRefs.current = [];
       
-      data.forEach(report => {
-        if (report.lat && report.lng) {  // 모든 단계의 마커 표시
-          // 좌표를 숫자로 변환하고 유효성 검사
-          const lng = parseFloat(report.lng);
-          const lat = parseFloat(report.lat);
-          
-          // 유효한 좌표인지 확인 (한국 지역 좌표 범위)
-          if (!isNaN(lng) && !isNaN(lat) && 
-              lng >= 124 && lng <= 132 && 
-              lat >= 33 && lat <= 39) {
-            
-            console.log(`마커 생성: lng=${lng}, lat=${lat}, location=${report.location}`);
-            
-            // 마커 색상을 단계에 따라 다르게 설정
-            let markerColor = '#ff4444'; // 기본 빨간색
-            let markerTitle = `신고 위치: ${report.location || '위치 정보 없음'}`;
-            
-            if (report.ai_stage) {
-              switch (report.ai_stage) {
-                case 1:
-                  markerColor = '#4CAF50'; // 초록색 - 출동 완료
-                  markerTitle = `출동 완료: ${report.location || '위치 정보 없음'}`;
-                  break;
-                case 2:
-                  markerColor = '#FF9800'; // 주황색 - 검토 중
-                  markerTitle = `검토 중: ${report.location || '위치 정보 없음'}`;
-                  break;
-                case 3:
-                  markerColor = '#ff4444'; // 빨간색 - 막힘 확인
-                  markerTitle = `막힘 확인: ${report.location || '위치 정보 없음'}`;
-                  break;
-                case 4:
-                  markerColor = '#9C27B0'; // 보라색 - 정상
-                  markerTitle = `정상: ${report.location || '위치 정보 없음'}`;
-                  break;
-                case 5:
-                  markerColor = '#607D8B'; // 회색 - 취소
-                  markerTitle = `취소됨: ${report.location || '위치 정보 없음'}`;
-                  break;
-                default:
-                  markerColor = '#ff4444';
-              }
-            }
-            
-            const el = document.createElement('div');
-            el.className = 'report-marker';
-            el.style.cssText = `
-              background: ${markerColor};
-              width: 16px;
-              height: 16px;
-              border-radius: 50%;
-              border: 3px solid white;
-              box-shadow: 0 2px 8px rgba(0,0,0,0.3);
-              cursor: pointer;
-            `;
-            el.title = markerTitle;
-            
-            const marker = new maplibregl.Marker({ 
-              element: el, 
-              anchor: 'bottom',
-              pitchAlignment: 'map',
-              rotationAlignment: 'map'
-            })
-              .setLngLat([lng, lat])  // [경도, 위도] 순서로 정확히 설정
-              .addTo(mapRef.current);
-              
-            markerRefs.current.push(marker);
-          } else {
-            console.warn(`유효하지 않은 좌표: lng=${lng}, lat=${lat}, location=${report.location}`);
+      // 유효한 데이터만 필터링
+      const validReports = data.filter(report => {
+        const lng = parseFloat(report.lng);
+        const lat = parseFloat(report.lat);
+        return !isNaN(lng) && !isNaN(lat) && 
+               lng >= 124 && lng <= 132 && 
+               lat >= 33 && lat <= 39;
+      });
+      
+      console.log(`유효한 신고 데이터: ${validReports.length}개`);
+      
+      validReports.forEach((report, index) => {
+        // 좌표를 숫자로 변환
+        const lng = parseFloat(report.lng);
+        const lat = parseFloat(report.lat);
+        
+        console.log(`마커 ${index + 1}: lng=${lng}, lat=${lat}, location=${report.location}, stage=${report.ai_stage}`);
+        
+        // 각 마커마다 고유한 ID 생성
+        const markerId = `marker-${report.id || index}`;
+        
+        // 마커 색상을 단계에 따라 다르게 설정
+        let markerColor = '#ff4444'; // 기본 빨간색
+        let markerTitle = `신고 위치: ${report.location || '위치 정보 없음'}`;
+        
+        if (report.ai_stage) {
+          switch (report.ai_stage) {
+            case 1:
+              markerColor = '#4CAF50'; // 초록색 - 출동 완료
+              markerTitle = `출동 완료: ${report.location || '위치 정보 없음'}`;
+              break;
+            case 2:
+              markerColor = '#FF9800'; // 주황색 - 검토 중
+              markerTitle = `검토 중: ${report.location || '위치 정보 없음'}`;
+              break;
+            case 3:
+              markerColor = '#ff4444'; // 빨간색 - 막힘 확인
+              markerTitle = `막힘 확인: ${report.location || '위치 정보 없음'}`;
+              break;
+            case 4:
+              markerColor = '#9C27B0'; // 보라색 - 정상
+              markerTitle = `정상: ${report.location || '위치 정보 없음'}`;
+              break;
+            case 5:
+              markerColor = '#607D8B'; // 회색 - 취소
+              markerTitle = `취소됨: ${report.location || '위치 정보 없음'}`;
+              break;
+            default:
+              markerColor = '#ff4444';
           }
         }
+        
+        // 마커 요소 생성 - 고유한 ID 부여
+        const el = document.createElement('div');
+        el.className = 'report-marker';
+        el.id = markerId;
+        el.style.cssText = `
+          background: ${markerColor};
+          width: 16px;
+          height: 16px;
+          border-radius: 50%;
+          border: 3px solid white;
+          box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+          cursor: pointer;
+        `;
+        el.title = markerTitle;
+        
+        // 마커 생성 및 지도에 추가
+        const marker = new maplibregl.Marker({ 
+          element: el, 
+          anchor: 'bottom',
+          pitchAlignment: 'map',
+          rotationAlignment: 'map'
+        });
+        
+        // 좌표 설정 및 지도에 추가
+        marker.setLngLat([lng, lat]).addTo(mapRef.current);
+          
+        // 마커 참조 저장
+        markerRefs.current.push(marker);
+        console.log(`마커 ${index + 1} 추가됨 (ID: ${markerId}, 색상: ${markerColor}, 좌표: [${lng}, ${lat}])`);
       });
+      
+      console.log(`총 ${markerRefs.current.length}개의 신고 마커가 표시되었습니다.`);
     } catch (error) {
       console.error('Failed to load reports:', error);
     }

@@ -19,6 +19,7 @@ code {
   left: 0;
   will-change: transform;
   transform-origin: center bottom;
+  pointer-events: auto;
 }
 
 .maplibregl-marker svg {
@@ -32,6 +33,9 @@ code {
   transform: translate(-50%, -50%);
   pointer-events: auto;
   z-index: 1;
+  /* 마커 위치 고정을 위한 추가 스타일 */
+  transform-style: preserve-3d;
+  backface-visibility: hidden;
 }
 
 /* 지도 컨테이너 스타일 */

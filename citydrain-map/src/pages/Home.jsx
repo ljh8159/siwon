@@ -26,7 +26,7 @@ export default function Home({ reports = [], stats = { blocked_count: 0, dispatc
         width: "100%", height: "100%", boxSizing: "border-box", paddingBottom: 80, overflowY: "auto", borderRadius: 32
       }}>
         <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', margin: "24px 0 0 0" }}>
-          <h2 style={{ fontSize: "2rem", fontWeight: 700, lineHeight: 1.2, margin: 0 }}>도로뚫이1단에<br />신고하세요</h2>
+          <h2 style={{ fontSize: "2rem", fontWeight: 700, lineHeight: 1.2, margin: 0 }}>도로뚫이단에<br />신고하세요</h2>
           
           {/* 범2례 */}
           <div style={{
@@ -38,7 +38,7 @@ export default function Home({ reports = [], stats = { blocked_count: 0, dispatc
             minWidth: '120px',
             marginLeft: '10px'
           }}>
-            <div style={{ marginBottom: '8px', fontWeight: 'bold', fontSize: '13px' }}>범1례</div>
+            <div style={{ marginBottom: '8px', fontWeight: 'bold', fontSize: '13px' }}>범례</div>
             <div style={{ display: 'flex', alignItems: 'center', marginBottom: '4px' }}>
               <div style={{
                 width: '10px',
